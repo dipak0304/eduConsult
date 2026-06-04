@@ -21,6 +21,12 @@ const TeacherFees = () => {
   const paid = fees.filter((f) => f.status === 'paid').reduce((s, f) => s + f.amount, 0);
   const pending = fees.filter((f) => f.status === 'pending').reduce((s, f) => s + f.amount, 0);
 
+  const filteredStudents = students.filter(s =>
+    s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    s.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    s.phone.includes(searchQuery)
+  );
+
   const handleOpenModal = () => {
     setFormData({
       studentId: '',
@@ -28,30 +34,167 @@ const TeacherFees = () => {
       amount: '',
       dueDate: '',
     });
+    setSearchQuery('');
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e) => {
+  const handleSelectStudent = (student) => {
+    setFormData({ ...formData, studentId: student.id });
+    setSearchQuery(student.name);
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    addFee({
-      ...formData,
-      amount: parseInt(formData.amount),
-      status: 'pending',
-    });
-    setIsModalOpen(false);
-  };
-
-  const handleToggleStatus = (id) => {
-    const fee = fees.find((f) => f.id === id);
-    if (fee) {
-      updateFee(id, { status: fee.status === 'paid' ? 'pending' : 'paid' });
+    try {
+      await addFee({
+        ...formData,
+        amount: parseInt(formData.amount),
+        status: 'pending',
+      });
+      setIsModalOpen(false);
+      setToast({ show: true, message: 'Invoice generated successfully', type: 'success' });
+    } catch (error) {
+      setToast({ show: true, message: error.message || 'Failed to generate invoice', type: 'error' });
     }
   };
 
-  const handleDelete = (id) => {
+  const handleToggleStatus = async (id) => {
+    try {
+      const fee = fees.find((f) => f.id === id);
+      if (fee) {
+        await updateFee(id, { status: fee.status === 'paid' ? 'pending' : 'paid' });
+        setToast({ show: true, message: `Fee marked as ${fee.status === 'paid' ? 'pending' : 'paid'}`, type: 'success' });
+      }
+    } catch (error) {
+      setToast({ show: true, message: error.message || 'Failed to update fee status', type: 'error' });
+    }
+  };
+
+  const handleDelete = async (id) => {
     if (confirm('Are you sure you want to delete this fee?')) {
-      deleteFee(id);
+      try {
+        await deleteFee(id);
+        setToast({ show: true, message: 'Fee deleted successfully', type: 'success' });
+      } catch (error) {
+        setToast({ show: true, message: error.message || 'Failed to delete fee', type: 'error' });
+      }
     }
+  };
+
+  const handleStudentClick = (student) => {
+    setSelectedStudent(student);
+    setIsBillModalOpen(true);
+  };
+
+  const handleDownloadBill = () => {
+    if (!selectedStudent) return;
+    
+    const studentFees = fees.filter(f => f.studentId === selectedStudent.id);
+    const total = studentFees.reduce((sum, f) => sum + f.amount, 0);
+    
+    // Create canvas
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const width = 600;
+    const height = 800;
+    canvas.width = width;
+    canvas.height = height;
+    
+    // Background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+    
+    // Header
+    ctx.fillStyle = '#1e3a8a';
+    ctx.fillRect(0, 0, width, 80);
+    
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 28px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('FEE BILL', width / 2, 50);
+    
+    // Student Info
+    ctx.fillStyle = '#1f2937';
+    ctx.font = 'bold 18px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Student: ${selectedStudent.name}`, 30, 130);
+    
+    ctx.fillStyle = '#6b7280';
+    ctx.font = '14px Arial';
+    ctx.fillText(`Email: ${selectedStudent.email}`, 30, 160);
+    ctx.fillText(`Phone: ${selectedStudent.phone}`, 30, 185);
+    ctx.fillText(`Date: ${new Date().toLocaleDateString()}`, 30, 210);
+    
+    // Divider
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(30, 240);
+    ctx.lineTo(width - 30, 240);
+    ctx.stroke();
+    
+    // Fee History Header
+    ctx.fillStyle = '#1f2937';
+    ctx.font = 'bold 16px Arial';
+    ctx.fillText('FEE HISTORY', 30, 280);
+    
+    // Fee Items
+    let y = 320;
+    ctx.font = '14px Arial';
+    
+    if (studentFees.length === 0) {
+      ctx.fillStyle = '#6b7280';
+      ctx.fillText('No fee records found', 30, y);
+    } else {
+      studentFees.forEach((f, index) => {
+        ctx.fillStyle = '#1f2937';
+        ctx.font = 'bold 14px Arial';
+        ctx.fillText(`${index + 1}. ${f.description}`, 30, y);
+        
+        ctx.fillStyle = '#6b7280';
+        ctx.font = '12px Arial';
+        ctx.fillText(`Amount: ₹${f.amount.toLocaleString()}`, 30, y + 20);
+        ctx.fillText(`Due: ${f.dueDate}`, 200, y + 20);
+        
+        ctx.fillStyle = f.status === 'paid' ? '#059669' : f.status === 'pending' ? '#d97706' : '#dc2626';
+        ctx.fillText(f.status.toUpperCase(), 350, y + 20);
+        
+        y += 50;
+      });
+    }
+    
+    // Divider
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(30, y + 20);
+    ctx.lineTo(width - 30, y + 20);
+    ctx.stroke();
+    
+    // Total
+    y += 60;
+    ctx.fillStyle = '#1f2937';
+    ctx.font = 'bold 18px Arial';
+    ctx.fillText('TOTAL', 30, y);
+    
+    ctx.fillStyle = '#1e3a8a';
+    ctx.font = 'bold 24px Arial';
+    ctx.textAlign = 'right';
+    ctx.fillText(`₹${total.toLocaleString()}`, width - 30, y);
+    
+    // Convert to image and download
+    canvas.toBlob((blob) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `fee_bill_${selectedStudent.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      setToast({ show: true, message: 'Bill downloaded successfully', type: 'success' });
+    }, 'image/jpeg', 0.9);
   };
 
   return (
@@ -145,20 +288,50 @@ const TeacherFees = () => {
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Generate Invoice">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Student</label>
-            <select
-              value={formData.studentId}
-              onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Search Student</label>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by name, email, or phone..."
               className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-navy-800 text-sm text-gray-900 dark:text-white"
               required
-            >
-              <option value="">Select Student</option>
-              {students.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
+            />
+            {searchQuery && filteredStudents.length > 0 && (
+              <div className="mt-2 max-h-48 overflow-y-auto border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-navy-800">
+                {filteredStudents.map((s) => (
+                  <div
+                    key={s.id}
+                    onClick={() => handleSelectStudent(s)}
+                    className="flex items-center gap-3 px-4 py-2 hover:bg-gray-100 dark:hover:bg-navy-700 cursor-pointer"
+                  >
+                    <img src={s.photoUrl} alt={s.name} className="w-8 h-8 rounded-full object-cover" />
+                    <div>
+                      <p className="text-sm font-medium text-navy-900 dark:text-white">{s.name}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{s.email}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {formData.studentId && (
+              <div className="mt-2 flex items-center gap-2 p-2 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg">
+                <i className="fa-solid fa-check-circle text-emerald-500" />
+                <span className="text-sm text-emerald-700 dark:text-emerald-400">
+                  Selected: {students.find(s => s.id === formData.studentId)?.name}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormData({ ...formData, studentId: '' });
+                    setSearchQuery('');
+                  }}
+                  className="ml-auto text-red-500 hover:text-red-600"
+                >
+                  <i className="fa-solid fa-times" />
+                </button>
+              </div>
+            )}
           </div>
           <Input label="Description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} required />
           <Input label="Amount (₹)" type="number" value={formData.amount} onChange={(e) => setFormData({ ...formData, amount: e.target.value })} required />
@@ -225,6 +398,15 @@ const TeacherFees = () => {
               <span className="text-lg font-bold text-navy-900 dark:text-white">
                 ₹{fees.filter(f => f.studentId === selectedStudent.id).reduce((sum, f) => sum + f.amount, 0).toLocaleString()}
               </span>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <Button variant="ghost" onClick={() => setIsBillModalOpen(false)} className="flex-1">
+                Close
+              </Button>
+              <Button onClick={handleDownloadBill} className="flex-1">
+                <i className="fa-solid fa-download mr-1" /> Download Bill
+              </Button>
             </div>
           </div>
         )}
