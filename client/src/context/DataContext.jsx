@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
+
 const DataContext = createContext();
 
 export const useData = () => {
@@ -19,9 +21,8 @@ export const DataProvider = ({ children }) => {
   const [courses, setCourses] = useState([]);
   const [session, setSession] = useState(null);
 
-  // Load data from localStorage on mount
+  // Load data from localStorage on mount (for non-student data)
   useEffect(() => {
-    const loadedStudents = JSON.parse(localStorage.getItem('students') || '[]');
     const loadedFees = JSON.parse(localStorage.getItem('fees') || '[]');
     const loadedAttendance = JSON.parse(localStorage.getItem('attendance') || '[]');
     const loadedTests = JSON.parse(localStorage.getItem('tests') || '[]');
@@ -43,18 +44,6 @@ export const DataProvider = ({ children }) => {
       setCourses(defaultCourses);
     } else {
       setCourses(loadedCourses);
-    }
-
-    if (loadedStudents.length === 0) {
-      const defaultStudents = [
-        { id: 's1', name: 'Rahul Sharma', email: 'rahul@example.com', phone: '+91 98765 43210', qualification: 'B.Tech Computer Science', age: 22, address: '123, MG Road, Mumbai', photoUrl: 'https://placehold.co/100x100/0f172a/3b82f6?text=RS', assignedClass: 'Full Stack Web Development', classTime: 'Mon-Wed-Fri 10:00 AM - 1:00 PM', createdAt: new Date().toISOString() },
-        { id: 's2', name: 'Priya Patel', email: 'priya@example.com', phone: '+91 98765 43211', qualification: 'B.Sc Mathematics', age: 21, address: '456, FC Road, Pune', photoUrl: 'https://placehold.co/100x100/0f172a/fb923c?text=PP', assignedClass: 'Data Science & Analytics', classTime: 'Tue-Thu-Sat 2:00 PM - 5:00 PM', createdAt: new Date().toISOString() },
-        { id: 's3', name: 'Amit Kumar', email: 'amit@example.com', phone: '+91 98765 43212', qualification: 'B.Com', age: 23, address: '789, JM Road, Mumbai', photoUrl: 'https://placehold.co/100x100/0f172a/3b82f6?text=AK', assignedClass: 'Business Analytics & MBA Prep', classTime: 'Mon-Wed-Fri 3:00 PM - 6:00 PM', createdAt: new Date().toISOString() },
-      ];
-      localStorage.setItem('students', JSON.stringify(defaultStudents));
-      setStudents(defaultStudents);
-    } else {
-      setStudents(loadedStudents);
     }
 
     if (loadedTests.length === 0) {
@@ -88,32 +77,85 @@ export const DataProvider = ({ children }) => {
       setTests(loadedTests);
     }
 
-    setFees(loadedFees);
-    setAttendance(loadedAttendance);
     setTestResults(loadedTestResults);
     setSession(loadedSession);
   }, []);
 
-  // Save data to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem('students', JSON.stringify(students));
-  }, [students]);
+  const fetchStudents = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/students`);
+      if (response.ok) {
+        const data = await response.json();
+        // Map server response (fullName) to client format (name)
+        const mappedStudents = data.map(student => ({
+          ...student,
+          name: student.fullName,
+          id: student._id,
+        }));
+        setStudents(mappedStudents);
+      }
+    } catch (error) {
+      console.error('Error fetching students:', error);
+    }
+  };
 
-  useEffect(() => {
-    localStorage.setItem('fees', JSON.stringify(fees));
-  }, [fees]);
+  const fetchAttendance = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/attendance`);
+      if (response.ok) {
+        const data = await response.json();
+        // Map server response to client format
+        const mappedAttendance = data.map(att => ({
+          ...att,
+          id: att._id,
+        }));
+        setAttendance(mappedAttendance);
+      }
+    } catch (error) {
+      console.error('Error fetching attendance:', error);
+    }
+  };
 
+  const fetchFees = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/fees`);
+      if (response.ok) {
+        const data = await response.json();
+        // Map server response to client format
+        const mappedFees = data.map(fee => ({
+          ...fee,
+          id: fee._id,
+        }));
+        setFees(mappedFees);
+      }
+    } catch (error) {
+      console.error('Error fetching fees:', error);
+    }
+  };
+
+  // Fetch students from API on mount
   useEffect(() => {
-    localStorage.setItem('attendance', JSON.stringify(attendance));
-  }, [attendance]);
+    fetchStudents();
+  }, []);
+
+  // Fetch attendance from API on mount
+  useEffect(() => {
+    fetchAttendance();
+  }, []);
+
+  // Fetch fees from API on mount
+  useEffect(() => {
+    fetchFees();
+  }, []);
+
+  // Save data to localStorage whenever it changes (for non-student data)
+  useEffect(() => {
+    localStorage.setItem('testResults', JSON.stringify(testResults));
+  }, [testResults]);
 
   useEffect(() => {
     localStorage.setItem('tests', JSON.stringify(tests));
   }, [tests]);
-
-  useEffect(() => {
-    localStorage.setItem('testResults', JSON.stringify(testResults));
-  }, [testResults]);
 
   useEffect(() => {
     localStorage.setItem('courses', JSON.stringify(courses));
@@ -123,42 +165,230 @@ export const DataProvider = ({ children }) => {
     localStorage.setItem('session', JSON.stringify(session));
   }, [session]);
 
-  const addStudent = (student) => {
-    const newStudent = { ...student, id: 's' + Date.now(), createdAt: new Date().toISOString() };
-    setStudents([...students, newStudent]);
-    return newStudent;
+  const addStudent = async (student) => {
+    try {
+      // Map client format (name) to server format (fullName)
+      const serverStudent = {
+        fullName: student.name,
+        email: student.email,
+        phone: student.phone,
+        age: parseInt(student.age),
+        qualification: student.qualification,
+        address: student.address,
+        photoUrl: student.photoUrl,
+        assignedClass: student.assignedClass,
+        classTime: student.classTime,
+      };
+
+      const response = await fetch(`${API_BASE_URL}/students`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(serverStudent),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Map server response back to client format
+        const newStudent = {
+          ...data,
+          name: data.fullName,
+          id: data._id,
+        };
+        setStudents([...students, newStudent]);
+        return newStudent;
+      } else {
+        const error = await response.json();
+        console.error('Error adding student:', error);
+        throw new Error(error.message || 'Failed to add student');
+      }
+    } catch (error) {
+      console.error('Error adding student:', error);
+      throw error;
+    }
   };
 
-  const updateStudent = (id, updates) => {
-    setStudents(students.map(s => s.id === id ? { ...s, ...updates } : s));
+  const updateStudent = async (id, updates) => {
+    try {
+      // Map client format (name) to server format (fullName)
+      const serverUpdates = {
+        ...(updates.name && { fullName: updates.name }),
+        ...(updates.email && { email: updates.email }),
+        ...(updates.phone && { phone: updates.phone }),
+        ...(updates.age !== undefined && { age: parseInt(updates.age) }),
+        ...(updates.qualification && { qualification: updates.qualification }),
+        ...(updates.address && { address: updates.address }),
+        ...(updates.photoUrl && { photoUrl: updates.photoUrl }),
+        ...(updates.assignedClass !== undefined && { assignedClass: updates.assignedClass }),
+        ...(updates.classTime !== undefined && { classTime: updates.classTime }),
+      };
+
+      const response = await fetch(`${API_BASE_URL}/students/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(serverUpdates),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Map server response back to client format
+        const updatedStudent = {
+          ...data,
+          name: data.fullName,
+          id: data._id,
+        };
+        setStudents(students.map(s => s.id === id ? updatedStudent : s));
+        return updatedStudent;
+      } else {
+        const error = await response.json();
+        console.error('Error updating student:', error);
+        throw new Error(error.message || 'Failed to update student');
+      }
+    } catch (error) {
+      console.error('Error updating student:', error);
+      throw error;
+    }
   };
 
-  const deleteStudent = (id) => {
-    setStudents(students.filter(s => s.id !== id));
+  const deleteStudent = async (id) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/students/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setStudents(students.filter(s => s.id !== id));
+      } else {
+        const error = await response.json();
+        console.error('Error deleting student:', error);
+        throw new Error(error.message || 'Failed to delete student');
+      }
+    } catch (error) {
+      console.error('Error deleting student:', error);
+      throw error;
+    }
   };
 
-  const addFee = (fee) => {
-    const newFee = { ...fee, id: 'f' + Date.now(), createdAt: new Date().toISOString() };
-    setFees([...fees, newFee]);
-    return newFee;
+  const addFee = async (fee) => {
+    try {
+      const student = students.find(s => s.id === fee.studentId);
+      const response = await fetch(`${API_BASE_URL}/fees`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...fee,
+          studentName: student ? student.name : 'Unknown',
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const newFee = {
+          ...data,
+          id: data._id,
+        };
+        setFees([...fees, newFee]);
+        return newFee;
+      } else {
+        const error = await response.json();
+        console.error('Error adding fee:', error);
+        throw new Error(error.message || 'Failed to add fee');
+      }
+    } catch (error) {
+      console.error('Error adding fee:', error);
+      throw error;
+    }
   };
 
-  const updateFee = (id, updates) => {
-    setFees(fees.map(f => f.id === id ? { ...f, ...updates } : f));
+  const updateFee = async (id, updates) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/fees/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updates),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const updatedFee = {
+          ...data,
+          id: data._id,
+        };
+        setFees(fees.map(f => f.id === id ? updatedFee : f));
+        return updatedFee;
+      } else {
+        const error = await response.json();
+        console.error('Error updating fee:', error);
+        throw new Error(error.message || 'Failed to update fee');
+      }
+    } catch (error) {
+      console.error('Error updating fee:', error);
+      throw error;
+    }
   };
 
-  const deleteFee = (id) => {
-    setFees(fees.filter(f => f.id !== id));
+  const deleteFee = async (id) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/fees/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setFees(fees.filter(f => f.id !== id));
+      } else {
+        const error = await response.json();
+        console.error('Error deleting fee:', error);
+        throw new Error(error.message || 'Failed to delete fee');
+      }
+    } catch (error) {
+      console.error('Error deleting fee:', error);
+      throw error;
+    }
   };
 
-  const addAttendance = (record) => {
-    const existingIndex = attendance.findIndex(
-      a => a.studentId === record.studentId && a.date === record.date
-    );
-    if (existingIndex >= 0) {
-      setAttendance(attendance.map((a, i) => i === existingIndex ? record : a));
-    } else {
-      setAttendance([...attendance, { ...record, id: 'a' + Date.now() }]);
+  const addAttendance = async (record) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/attendance`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(record),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Map server response to client format
+        const newAttendance = {
+          ...data,
+          id: data._id,
+        };
+        
+        // Check if record already exists and update, otherwise add
+        const existingIndex = attendance.findIndex(
+          a => a.studentId === record.studentId && a.date === record.date
+        );
+        if (existingIndex >= 0) {
+          setAttendance(attendance.map((a, i) => i === existingIndex ? newAttendance : a));
+        } else {
+          setAttendance([...attendance, newAttendance]);
+        }
+        return newAttendance;
+      } else {
+        const error = await response.json();
+        console.error('Error adding attendance:', error);
+        throw new Error(error.message || 'Failed to add attendance');
+      }
+    } catch (error) {
+      console.error('Error adding attendance:', error);
+      throw error;
     }
   };
 

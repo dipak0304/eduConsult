@@ -1,37 +1,43 @@
 import React, { useState } from 'react';
 import { useData } from '../../context/DataContext';
 import Button from '../../components/ui/Button';
+import Toast from '../../components/ui/Toast';
 
 const TeacherAttendance = () => {
   const { students, attendance, addAttendance } = useData();
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [attendanceData, setAttendanceData] = useState({});
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
   const handleAttendanceChange = (studentId, status) => {
     setAttendanceData({ ...attendanceData, [studentId]: status });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     let saved = 0;
-    students.forEach((s) => {
-      const status = attendanceData[s.id];
-      if (status) {
-        addAttendance({
-          studentId: s.id,
-          date,
-          status,
-        });
-        saved++;
+    try {
+      for (const s of students) {
+        const status = attendanceData[s.id];
+        if (status) {
+          await addAttendance({
+            studentId: s.id,
+            date,
+            status,
+          });
+          saved++;
+        }
       }
-    });
 
-    if (saved === 0) {
-      alert('Please mark attendance for at least one student');
-      return;
+      if (saved === 0) {
+        setToast({ show: true, message: 'Please mark attendance for at least one student', type: 'error' });
+        return;
+      }
+
+      setToast({ show: true, message: `Attendance saved for ${saved} students`, type: 'success' });
+      setAttendanceData({});
+    } catch (error) {
+      setToast({ show: true, message: error.message || 'Failed to save attendance', type: 'error' });
     }
-
-    alert(`Attendance saved for ${saved} students`);
-    setAttendanceData({});
   };
 
   const getExistingStatus = (studentId) => {
@@ -118,6 +124,14 @@ const TeacherAttendance = () => {
           </div>
         )}
       </div>
+
+      {toast.show && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast({ ...toast, show: false })}
+        />
+      )}
     </div>
   );
 };

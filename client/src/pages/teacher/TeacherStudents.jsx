@@ -45,19 +45,27 @@ const TeacherStudents = () => {
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (editingStudent) {
-      updateStudent(editingStudent.id, formData);
-    } else {
-      addStudent(formData);
+    try {
+      if (editingStudent) {
+        await updateStudent(editingStudent.id, formData);
+      } else {
+        await addStudent(formData);
+      }
+      setIsModalOpen(false);
+    } catch (error) {
+      alert(error.message || 'Failed to save student');
     }
-    setIsModalOpen(false);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (confirm('Are you sure you want to delete this student?')) {
-      deleteStudent(id);
+      try {
+        await deleteStudent(id);
+      } catch (error) {
+        alert(error.message || 'Failed to delete student');
+      }
     }
   };
 

@@ -1,10 +1,14 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useData } from '../../context/DataContext';
 
 const StudentFees = ({ student }) => {
   const { fees } = useData();
-  const studentFees = fees.filter(f => f.studentId === student.id);
+  const [studentFees, setStudentFees] = useState([]);
   const totalPending = studentFees.filter(f => f.status === 'pending').reduce((s, f) => s + f.amount, 0);
+
+  useEffect(() => {
+    setStudentFees(fees.filter(f => f.studentId === student.id));
+  }, [fees, student.id]);
 
   return (
     <div>

@@ -3,16 +3,20 @@ import { useData } from '../../context/DataContext';
 import Modal from '../../components/ui/Modal';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
+import Toast from '../../components/ui/Toast';
 
 const TeacherFees = () => {
   const { students, fees, addFee, updateFee, deleteFee } = useData();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isBillModalOpen, setIsBillModalOpen] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState(null);
   const [formData, setFormData] = useState({
     studentId: '',
     description: '',
     amount: '',
     dueDate: '',
   });
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
   const paid = fees.filter((f) => f.status === 'paid').reduce((s, f) => s + f.amount, 0);
   const pending = fees.filter((f) => f.status === 'pending').reduce((s, f) => s + f.amount, 0);
@@ -108,7 +112,14 @@ const TeacherFees = () => {
                       key={f.id}
                       className="border-b border-gray-50 dark:border-gray-800/50 hover:bg-gray-50 dark:hover:bg-navy-800/30 transition-colors"
                     >
-                      <td className="px-4 py-3 font-medium text-navy-900 dark:text-white">{student?.name || 'Unknown'}</td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => handleStudentClick(student)}
+                          className="font-medium text-navy-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        >
+                          {student?.name || 'Unknown'}
+                        </button>
+                      </td>
                       <td className="px-4 py-3 text-gray-600 dark:text-gray-400 hidden sm:table-cell">{f.description}</td>
                       <td className="px-4 py-3 font-semibold text-navy-900 dark:text-white">₹{f.amount.toLocaleString()}</td>
                       <td className="px-4 py-3 text-gray-600 dark:text-gray-400 hidden md:table-cell">{f.dueDate}</td>
@@ -162,6 +173,70 @@ const TeacherFees = () => {
           </div>
         </form>
       </Modal>
+
+      <Modal isOpen={isBillModalOpen} onClose={() => setIsBillModalOpen(false)} title="Student Fee Bill">
+        {selectedStudent && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-4 pb-4 border-b border-gray-200 dark:border-gray-700">
+              <img src={selectedStudent.photoUrl} alt={selectedStudent.name} className="w-16 h-16 rounded-full object-cover" />
+              <div>
+                <h3 className="text-lg font-bold text-navy-900 dark:text-white">{selectedStudent.name}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{selectedStudent.email}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{selectedStudent.phone}</p>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 dark:bg-navy-800 rounded-lg p-4">
+              <h4 className="font-semibold text-navy-900 dark:text-white mb-3">Fee History</h4>
+              {fees.filter(f => f.studentId === selectedStudent.id).length === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">No fee records found</p>
+              ) : (
+                <div className="space-y-2">
+                  {fees
+                    .filter(f => f.studentId === selectedStudent.id)
+                    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                    .map((f) => {
+                      const isOverdue = f.status === 'pending' && new Date(f.dueDate) < new Date();
+                      const statusClass = isOverdue
+                        ? 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400'
+                        : f.status === 'paid'
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
+                        : 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400';
+                      const statusText = isOverdue ? 'Overdue' : f.status === 'paid' ? 'Paid' : 'Pending';
+                      return (
+                        <div key={f.id} className="flex items-center justify-between p-3 bg-white dark:bg-navy-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-navy-900 dark:text-white">{f.description}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Due: {f.dueDate}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-bold text-navy-900 dark:text-white">₹{f.amount.toLocaleString()}</p>
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${statusClass}`}>{statusText}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-between items-center pt-4 border-t border-gray-200 dark:border-gray-700">
+              <span className="text-sm text-gray-500 dark:text-gray-400">Total</span>
+              <span className="text-lg font-bold text-navy-900 dark:text-white">
+                ₹{fees.filter(f => f.studentId === selectedStudent.id).reduce((sum, f) => sum + f.amount, 0).toLocaleString()}
+              </span>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {toast.show && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast({ ...toast, show: false })}
+        />
+      )}
     </div>
   );
 };
