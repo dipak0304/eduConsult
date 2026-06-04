@@ -6,7 +6,7 @@ import { sendWelcomeEmail } from '../utils/emailService';
 // Create a new student
 export const createStudent = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { fullName, email, phone, age, qualification, address, photoUrl, assignedClass, classTime } = req.body;
+    const { fullName, email, phone, age, qualification, address, photoUrl, assignedClass, classTime, classes } = req.body;
 
     // Check if student with email already exists
     const existingStudent = await Student.findOne({ email });
@@ -28,6 +28,7 @@ export const createStudent = async (req: Request, res: Response): Promise<void> 
       photoUrl,
       assignedClass,
       classTime,
+      classes,
       password,
     });
 
@@ -78,7 +79,7 @@ export const getStudentById = async (req: Request, res: Response): Promise<void>
 export const updateStudent = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { fullName, email, phone, age, qualification, address, photoUrl, assignedClass, classTime } = req.body;
+    const { fullName, email, phone, age, qualification, address, photoUrl, assignedClass, classTime, classes, isAdmitted, isPaid } = req.body;
 
     // Check if student exists
     const student = await Student.findById(id);
@@ -108,6 +109,9 @@ export const updateStudent = async (req: Request, res: Response): Promise<void> 
         photoUrl: photoUrl || student.photoUrl,
         assignedClass: assignedClass !== undefined ? assignedClass : student.assignedClass,
         classTime: classTime !== undefined ? classTime : student.classTime,
+        classes: classes !== undefined ? classes : student.classes,
+        isAdmitted: isAdmitted !== undefined ? isAdmitted : student.isAdmitted,
+        isPaid: isPaid !== undefined ? isPaid : student.isPaid,
       },
       { new: true, runValidators: true }
     );

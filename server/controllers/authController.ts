@@ -192,7 +192,53 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
   }
 };
 
-// Change password (authenticated)
+// Teacher login
+export const teacherLogin = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      res.status(400).json({ message: 'Email and password are required' });
+      return;
+    }
+
+    const teacherEmail = process.env.TEACHER_EMAIL;
+    const teacherPass = process.env.TEACHER_PASS;
+
+    if (!teacherEmail || !teacherPass) {
+      res.status(500).json({ message: 'Teacher credentials not configured' });
+      return;
+    }
+
+    // Verify credentials
+    if (email !== teacherEmail || password !== teacherPass) {
+      res.status(401).json({ message: 'Invalid credentials' });
+      return;
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { 
+        id: 'teacher',
+        email: teacherEmail,
+        role: 'teacher'
+      },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '7d' }
+    );
+
+    res.status(200).json({ 
+      message: 'Login successful',
+      token,
+      teacher: {
+        email: teacherEmail,
+      }
+    });
+  } catch (error) {
+    console.error('Error during teacher login:', error);
+    res.status(500).json({ message: 'Error during login', error });
+  }
+};
 export const changePassword = async (req: Request, res: Response): Promise<void> => {
   try {
     const { currentPassword, newPassword } = req.body;

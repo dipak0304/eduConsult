@@ -11,6 +11,9 @@ export interface IStudent extends Document {
   photoUrl: string;
   assignedClass?: string;
   classTime?: string;
+  classes?: Array<{ assignedClass: string; classTime: string }>;
+  isAdmitted?: boolean;
+  isPaid?: boolean;
   password: string;
   otp?: string;
   otpExpiry?: Date;
@@ -67,6 +70,24 @@ const StudentSchema: Schema = new Schema(
     classTime: {
       type: String,
       trim: true,
+    },
+    classes: [{
+      assignedClass: {
+        type: String,
+        trim: true,
+      },
+      classTime: {
+        type: String,
+        trim: true,
+      },
+    }],
+    isAdmitted: {
+      type: Boolean,
+      default: false,
+    },
+    isPaid: {
+      type: Boolean,
+      default: false,
     },
     password: {
       type: String,

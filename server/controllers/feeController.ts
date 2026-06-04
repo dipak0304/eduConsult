@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import Fee, { IFee } from '../models/Fee';
+import Student from '../models/Student';
 
 // Create a new fee
 export const createFee = async (req: Request, res: Response): Promise<void> => {
@@ -81,6 +82,15 @@ export const updateFee = async (req: Request, res: Response): Promise<void> => {
       },
       { new: true, runValidators: true }
     );
+
+    // If fee status is changed to 'paid', automatically admit the student
+    if (status === 'paid' && fee.status !== 'paid') {
+      await Student.findByIdAndUpdate(
+        fee.studentId,
+        { isAdmitted: true, isPaid: true },
+        { new: true, runValidators: true }
+      );
+    }
 
     res.status(200).json(updatedFee);
   } catch (error) {

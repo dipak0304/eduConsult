@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   studentLogin,
+  teacherLogin,
   requestPasswordReset,
   verifyResetToken,
   resetPassword,
@@ -10,6 +11,9 @@ import { protect } from '../middleware/protect';
 import { rateLimit } from '../middleware/rateLimit';
 
 const router = Router();
+
+// POST /api/auth/teacher-login - Teacher login (rate limited)
+router.post('/teacher-login', rateLimit({ windowMs: 15 * 60 * 1000, maxRequests: 20 }), teacherLogin);
 
 // POST /api/auth/student-login - Student login (rate limited)
 router.post('/student-login', rateLimit({ windowMs: 15 * 60 * 1000, maxRequests: 5 }), studentLogin);

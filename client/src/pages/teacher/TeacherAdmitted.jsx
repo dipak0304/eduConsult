@@ -1,14 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useData } from '../../context/DataContext';
+import Modal from '../../components/ui/Modal';
+import html2canvas from 'html2canvas';
 
 const TeacherAdmitted = () => {
   const { students, fees } = useData();
   const [search, setSearch] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const billRef = useRef(null);
 
-  const admittedStudents = students.filter((s) => {
-    const sFees = fees.filter((f) => f.studentId === s.id);
-    return sFees.length > 0 && sFees.every((f) => f.status === 'paid');
-  });
+  const admittedStudents = students.filter((s) => s.isAdmitted);
 
   const filtered = admittedStudents.filter(
     (s) =>
@@ -16,6 +18,28 @@ const TeacherAdmitted = () => {
       s.email.toLowerCase().includes(search.toLowerCase()) ||
       s.phone.includes(search)
   );
+
+  const handleStudentClick = (student) => {
+    setSelectedStudent(student);
+    setIsModalOpen(true);
+  };
+
+  const studentFees = selectedStudent ? fees.filter(f => f.studentId === selectedStudent.id) : [];
+  const totalAmount = studentFees.reduce((sum, fee) => sum + (fee.amount || 0), 0);
+
+  const handleDownload = async () => {
+    if (billRef.current) {
+      const canvas = await html2canvas(billRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff'
+      });
+      const link = document.createElement('a');
+      link.download = `${selectedStudent?.name}_fee_bill.jpg`;
+      link.href = canvas.toDataURL('image/jpeg');
+      link.click();
+    }
+  };
 
   return (
     <div>
@@ -52,6 +76,7 @@ const TeacherAdmitted = () => {
               {filtered.map((s) => (
                 <tr
                   key={s.id}
+                  onClick={() => handleStudentClick(s)}
                   className="border-b border-gray-50 dark:border-gray-800/50 hover:bg-gray-50 dark:hover:bg-navy-800/30 transition-colors cursor-pointer"
                 >
                   <td className="px-4 py-3">
@@ -68,9 +93,18 @@ const TeacherAdmitted = () => {
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-400 hidden lg:table-cell">{s.email}</td>
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-400 hidden sm:table-cell">{s.assignedClass || 'N/A'}</td>
                   <td className="px-4 py-3 text-right">
-                    <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
-                      Paid
-                    </span>
+                    <div className="flex gap-2 justify-end">
+                      {s.isAdmitted && (
+                        <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
+                          Admitted
+                        </span>
+                      )}
+                      {s.isPaid && (
+                        <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400">
+                          Paid
+                        </span>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -84,6 +118,88 @@ const TeacherAdmitted = () => {
           </div>
         )}
       </div>
+
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`${selectedStudent?.name}'s Fees`} extraButton={<button onClick={handleDownload} className="px-4 py-2 bg-cta-500 text-white rounded-lg hover:bg-cta-600 transition-colors flex items-center gap-2">
+        <i className="fa-solid fa-download" /> Download as JPG
+      </button>}>
+        {studentFees.length > 0 ? (
+          <div className="space-y-3">
+            <div ref={billRef} className="bg-white p-6 rounded-lg border-2 border-gray-200">
+              {/* Consultancy Header */}
+              <div className="text-center mb-6 pb-4 border-b-2 border-cta-500">
+                <h1 className="text-2xl font-bold text-navy-900 mb-1">deepu consultancy</h1>
+                <p className="text-sm text-gray-600">Kathmandu, Nepal</p>
+                <p className="text-sm text-gray-600">info@consultancy.com</p>
+              </div>
+
+              {/* Bill Title */}
+              <div className="text-center mb-6">
+                <h2 className="text-xl font-bold text-navy-900">FEE RECEIPT</h2>
+                <p className="text-sm text-gray-500">Date: {new Date().toLocaleDateString()}</p>
+              </div>
+
+              {/* Student Info */}
+              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                <h3 className="font-bold text-navy-900 mb-2">Student Details</h3>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <p><span className="font-medium">Name:</span> {selectedStudent?.name}</p>
+                  <p><span className="font-medium">Email:</span> {selectedStudent?.email}</p>
+                  <p><span className="font-medium">Phone:</span> {selectedStudent?.phone}</p>
+                  <p><span className="font-medium">Class:</span> {selectedStudent?.assignedClass || 'N/A'}</p>
+                </div>
+              </div>
+
+              {/* Fee Details */}
+              <div className="mb-6">
+                <h3 className="font-bold text-navy-900 mb-3">Fee Details</h3>
+                {studentFees.map((fee) => (
+                  <div key={fee.id} className="flex justify-between items-center py-2 border-b border-gray-200">
+                    <div>
+                      <p className="font-medium text-navy-900">{fee.description}</p>
+                      <p className="text-xs text-gray-500">Due: {fee.dueDate ? new Date(fee.dueDate).toLocaleDateString() : 'N/A'}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-navy-900">Rs. {fee.amount}</p>
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        fee.status === 'paid' 
+                          ? 'bg-green-100 text-green-700' 
+                          : 'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        {fee.status.charAt(0).toUpperCase() + fee.status.slice(1)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Total */}
+              <div className="flex justify-between items-center py-3 border-t-2 border-gray-300 mt-4">
+                <p className="text-lg font-bold text-navy-900">Total Amount</p>
+                <p className="text-2xl font-bold text-cta-600">Rs. {totalAmount}</p>
+              </div>
+
+              {/* Stamp */}
+              <div className="mt-6 flex justify-center">
+                <div className="border-2 border-cta-500 rounded-lg p-3 transform -rotate-12 opacity-80">
+                  <p className="text-center font-bold text-cta-600 text-sm">PAID</p>
+                  <p className="text-center text-xs text-gray-600">{new Date().toLocaleDateString()}</p>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="mt-6 pt-4 border-t border-gray-200 text-center text-xs text-gray-500">
+                <p>Thank you for your payment!</p>
+                <p>For queries, contact: info@consultancy.com</p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+            <i className="fa-solid fa-receipt text-3xl mb-2 opacity-30" />
+            <p>No fees found for this student</p>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

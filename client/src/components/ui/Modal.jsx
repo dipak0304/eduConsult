@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 
-const Modal = ({ isOpen, onClose, title, children }) => {
+const Modal = ({ isOpen, onClose, title, children, extraButton }) => {
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -24,12 +24,15 @@ const Modal = ({ isOpen, onClose, title, children }) => {
         {title && (
           <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-800">
             <h3 className="text-xl font-bold text-navy-900 dark:text-white">{title}</h3>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-            >
-              <i className="fa-solid fa-xmark text-lg" />
-            </button>
+            <div className="flex items-center gap-3">
+              {extraButton}
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              >
+                <i className="fa-solid fa-xmark text-lg" />
+              </button>
+            </div>
           </div>
         )}
         <div className="p-6">{children}</div>

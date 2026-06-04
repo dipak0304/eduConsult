@@ -9,7 +9,7 @@ const Login = () => {
   const navigate = useNavigate();
   const { login } = useData();
   const [selectedRole, setSelectedRole] = useState(null);
-  const [teacherForm, setTeacherForm] = useState({ username: '', password: '' });
+  const [teacherForm, setTeacherForm] = useState({ email: '', password: '' });
   const [studentForm, setStudentForm] = useState({ email: '', password: '' });
   const [errors, setErrors] = useState({});
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -22,24 +22,38 @@ const Login = () => {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const handleTeacherLogin = (e) => {
+  const handleTeacherLogin = async (e) => {
     e.preventDefault();
     const newErrors = {};
     
-    if (!teacherForm.username.trim()) newErrors.username = 'Username is required';
-    if (!teacherForm.password.trim()) newErrors.password = 'Password is required';
+    if (!teacherForm.email?.trim()) newErrors.email = 'Email is required';
+    if (!teacherForm.password?.trim()) newErrors.password = 'Password is required';
     
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
 
-    // Demo credentials: admin / admin123
-    if (teacherForm.username === 'admin' && teacherForm.password === 'admin123') {
-      login('teacher', teacherForm.username);
-      navigate('/teacher/dashboard');
-    } else {
-      setErrors({ login: 'Invalid credentials. Use admin / admin123' });
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api'}/auth/teacher-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          email: teacherForm.email, 
+          password: teacherForm.password 
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        login('teacher', data.teacher.email, 'teacher', data.token);
+        navigate('/teacher/dashboard');
+      } else {
+        setErrors({ login: data.message || 'Invalid credentials' });
+      }
+    } catch (error) {
+      setErrors({ login: 'Failed to login. Please try again.' });
     }
   };
 
@@ -68,7 +82,7 @@ const Login = () => {
       const data = await response.json();
       
       if (response.ok) {
-        login('student', data.student.fullName, data.student.id);
+        login('student', data.student.fullName, data.student.id, data.token);
         navigate('/student/dashboard');
       } else {
         setErrors({ login: data.message || 'Invalid credentials' });
@@ -237,11 +251,12 @@ const Login = () => {
               <form onSubmit={handleTeacherLogin}>
                 <div className="space-y-4">
                   <Input
-                    label="Username"
-                    value={teacherForm.username}
-                    onChange={(e) => setTeacherForm({ ...teacherForm, username: e.target.value })}
-                    error={errors.username}
-                    placeholder="Enter username"
+                    label="Email"
+                    type="email"
+                    value={teacherForm.email}
+                    onChange={(e) => setTeacherForm({ ...teacherForm, email: e.target.value })}
+                    error={errors.email}
+                    placeholder="Enter email"
                   />
                   <Input
                     label="Password"
@@ -259,7 +274,6 @@ const Login = () => {
                   </Button>
                 </div>
               </form>
-              <p className="text-xs text-gray-400 text-center mt-3">Demo: admin / admin123</p>
             </div>
           </div>
         )}

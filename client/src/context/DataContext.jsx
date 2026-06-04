@@ -20,6 +20,7 @@ export const DataProvider = ({ children }) => {
   const [testResults, setTestResults] = useState([]);
   const [courses, setCourses] = useState([]);
   const [session, setSession] = useState(null);
+  const [token, setToken] = useState(localStorage.getItem('token') || null);
 
   // Load data from localStorage on mount (for non-student data)
   useEffect(() => {
@@ -29,6 +30,7 @@ export const DataProvider = ({ children }) => {
     const loadedTestResults = JSON.parse(localStorage.getItem('testResults') || '[]');
     const loadedCourses = JSON.parse(localStorage.getItem('courses') || '[]');
     const loadedSession = JSON.parse(localStorage.getItem('session') || 'null');
+    const loadedToken = localStorage.getItem('token');
 
     // Initialize default data if empty
     if (loadedCourses.length === 0) {
@@ -79,11 +81,15 @@ export const DataProvider = ({ children }) => {
 
     setTestResults(loadedTestResults);
     setSession(loadedSession);
+    if (loadedToken) setToken(loadedToken);
   }, []);
 
   const fetchStudents = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/students`);
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      
+      const response = await fetch(`${API_BASE_URL}/students`, { headers });
       if (response.ok) {
         const data = await response.json();
         // Map server response (fullName) to client format (name)
@@ -101,7 +107,10 @@ export const DataProvider = ({ children }) => {
 
   const fetchAttendance = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/attendance`);
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      
+      const response = await fetch(`${API_BASE_URL}/attendance`, { headers });
       if (response.ok) {
         const data = await response.json();
         // Map server response to client format
@@ -118,7 +127,10 @@ export const DataProvider = ({ children }) => {
 
   const fetchFees = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/fees`);
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      
+      const response = await fetch(`${API_BASE_URL}/fees`, { headers });
       if (response.ok) {
         const data = await response.json();
         // Map server response to client format
@@ -133,20 +145,26 @@ export const DataProvider = ({ children }) => {
     }
   };
 
-  // Fetch students from API on mount
+  // Fetch students from API on mount (only if authenticated)
   useEffect(() => {
-    fetchStudents();
-  }, []);
+    if (token) {
+      fetchStudents();
+    }
+  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fetch attendance from API on mount
+  // Fetch attendance from API on mount (only if authenticated)
   useEffect(() => {
-    fetchAttendance();
-  }, []);
+    if (token) {
+      fetchAttendance();
+    }
+  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fetch fees from API on mount
+  // Fetch fees from API on mount (only if authenticated)
   useEffect(() => {
-    fetchFees();
-  }, []);
+    if (token) {
+      fetchFees();
+    }
+  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Save data to localStorage whenever it changes (for non-student data)
   useEffect(() => {
@@ -165,26 +183,43 @@ export const DataProvider = ({ children }) => {
     localStorage.setItem('session', JSON.stringify(session));
   }, [session]);
 
+  useEffect(() => {
+    if (token) {
+      localStorage.setItem('token', token);
+    } else {
+      localStorage.removeItem('token');
+    }
+  }, [token]);
+
   const addStudent = async (student) => {
     try {
+      // Get token from localStorage as fallback
+      const currentToken = token || localStorage.getItem('token');
+      console.log('addStudent called, token from state:', token ? 'present' : 'missing');
+      console.log('addStudent called, token from localStorage:', currentToken ? 'present' : 'missing');
+      
       // Map client format (name) to server format (fullName)
       const serverStudent = {
-        fullName: student.name,
+        fullName: student.fullName || student.name,
         email: student.email,
         phone: student.phone,
         age: parseInt(student.age),
         qualification: student.qualification,
         address: student.address,
         photoUrl: student.photoUrl,
-        assignedClass: student.assignedClass,
-        classTime: student.classTime,
+        classes: student.classes,
+        // Also set single class fields for backward compatibility
+        assignedClass: student.classes?.[0]?.assignedClass || student.assignedClass,
+        classTime: student.classes?.[0]?.classTime || student.classTime,
       };
+
+      const headers = { 'Content-Type': 'application/json' };
+      if (currentToken) headers['Authorization'] = `Bearer ${currentToken}`;
+      console.log('Headers:', headers);
 
       const response = await fetch(`${API_BASE_URL}/students`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(serverStudent),
       });
 
@@ -211,6 +246,8 @@ export const DataProvider = ({ children }) => {
 
   const updateStudent = async (id, updates) => {
     try {
+      const currentToken = token || localStorage.getItem('token');
+      
       // Map client format (name) to server format (fullName)
       const serverUpdates = {
         ...(updates.name && { fullName: updates.name }),
@@ -220,15 +257,18 @@ export const DataProvider = ({ children }) => {
         ...(updates.qualification && { qualification: updates.qualification }),
         ...(updates.address && { address: updates.address }),
         ...(updates.photoUrl && { photoUrl: updates.photoUrl }),
-        ...(updates.assignedClass !== undefined && { assignedClass: updates.assignedClass }),
-        ...(updates.classTime !== undefined && { classTime: updates.classTime }),
+        ...(updates.classes && { classes: updates.classes }),
+        // Also set single class fields for backward compatibility
+        ...(updates.classes?.[0]?.assignedClass !== undefined && { assignedClass: updates.classes[0].assignedClass }),
+        ...(updates.classes?.[0]?.classTime !== undefined && { classTime: updates.classes[0].classTime }),
       };
+
+      const headers = { 'Content-Type': 'application/json' };
+      if (currentToken) headers['Authorization'] = `Bearer ${currentToken}`;
 
       const response = await fetch(`${API_BASE_URL}/students/${id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(serverUpdates),
       });
 
@@ -255,8 +295,14 @@ export const DataProvider = ({ children }) => {
 
   const deleteStudent = async (id) => {
     try {
+      const currentToken = token || localStorage.getItem('token');
+      
+      const headers = { 'Content-Type': 'application/json' };
+      if (currentToken) headers['Authorization'] = `Bearer ${currentToken}`;
+
       const response = await fetch(`${API_BASE_URL}/students/${id}`, {
         method: 'DELETE',
+        headers,
       });
 
       if (response.ok) {
@@ -274,12 +320,15 @@ export const DataProvider = ({ children }) => {
 
   const addFee = async (fee) => {
     try {
+      const currentToken = token || localStorage.getItem('token');
       const student = students.find(s => s.id === fee.studentId);
+      
+      const headers = { 'Content-Type': 'application/json' };
+      if (currentToken) headers['Authorization'] = `Bearer ${currentToken}`;
+
       const response = await fetch(`${API_BASE_URL}/fees`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           ...fee,
           studentName: student ? student.name : 'Unknown',
@@ -307,11 +356,14 @@ export const DataProvider = ({ children }) => {
 
   const updateFee = async (id, updates) => {
     try {
+      const currentToken = token || localStorage.getItem('token');
+      
+      const headers = { 'Content-Type': 'application/json' };
+      if (currentToken) headers['Authorization'] = `Bearer ${currentToken}`;
+
       const response = await fetch(`${API_BASE_URL}/fees/${id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(updates),
       });
 
@@ -336,8 +388,14 @@ export const DataProvider = ({ children }) => {
 
   const deleteFee = async (id) => {
     try {
+      const currentToken = token || localStorage.getItem('token');
+      
+      const headers = { 'Content-Type': 'application/json' };
+      if (currentToken) headers['Authorization'] = `Bearer ${currentToken}`;
+
       const response = await fetch(`${API_BASE_URL}/fees/${id}`, {
         method: 'DELETE',
+        headers,
       });
 
       if (response.ok) {
@@ -355,11 +413,14 @@ export const DataProvider = ({ children }) => {
 
   const addAttendance = async (record) => {
     try {
+      const currentToken = token || localStorage.getItem('token');
+      
+      const headers = { 'Content-Type': 'application/json' };
+      if (currentToken) headers['Authorization'] = `Bearer ${currentToken}`;
+
       const response = await fetch(`${API_BASE_URL}/attendance`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(record),
       });
 
@@ -427,14 +488,16 @@ export const DataProvider = ({ children }) => {
     setCourses(courses.filter(c => c.id !== id));
   };
 
-  const login = (role, username, studentId = null) => {
+  const login = (role, username, studentId = null, token = null) => {
     const newSession = { role, username, studentId };
     setSession(newSession);
+    if (token) setToken(token);
     return newSession;
   };
 
   const logout = () => {
     setSession(null);
+    setToken(null);
   };
 
   const value = {
@@ -445,6 +508,7 @@ export const DataProvider = ({ children }) => {
     testResults,
     courses,
     session,
+    token,
     addStudent,
     updateStudent,
     deleteStudent,
