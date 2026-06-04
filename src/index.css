@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-50 dark:bg-navy-950 text-gray-900 dark:text-white;
+  }
+}
+
+@layer utilities {
+  .page-hidden {
+    @apply hidden;
+  }
+  .page-visible {
+    @apply block;
+  }
+  .fade-in-up {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+  }
+  .fade-in-up.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .slide-in {
+    opacity: 0;
+    transform: translateX(-20px);
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+  }
+  .slide-in.visible {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top, 0);
+  }
+}
