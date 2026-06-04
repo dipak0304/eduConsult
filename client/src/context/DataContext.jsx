@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
 
@@ -20,10 +20,12 @@ export const DataProvider = ({ children }) => {
   const [testResults, setTestResults] = useState([]);
   const [courses, setCourses] = useState([]);
   const [session, setSession] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('token') || null);
+  const [token, setToken] = useState(null);
+  const isInitialLoadComplete = useRef(false);
 
   // Load data from localStorage on mount (for non-student data)
   useEffect(() => {
+    console.log('DataContext: Loading data from localStorage');
     const loadedFees = JSON.parse(localStorage.getItem('fees') || '[]');
     const loadedAttendance = JSON.parse(localStorage.getItem('attendance') || '[]');
     const loadedTests = JSON.parse(localStorage.getItem('tests') || '[]');
@@ -31,6 +33,18 @@ export const DataProvider = ({ children }) => {
     const loadedCourses = JSON.parse(localStorage.getItem('courses') || '[]');
     const loadedSession = JSON.parse(localStorage.getItem('session') || 'null');
     const loadedToken = localStorage.getItem('token');
+
+    console.log('DataContext: loadedToken from localStorage:', loadedToken ? 'present' : 'missing');
+
+    // Set token and session
+    if (loadedToken) {
+      console.log('DataContext: Setting token from localStorage');
+      setToken(loadedToken);
+    }
+    if (loadedSession) setSession(loadedSession);
+
+    // Mark initial load as complete
+    isInitialLoadComplete.current = true;
 
     // Initialize default data if empty
     if (loadedCourses.length === 0) {
@@ -80,8 +94,6 @@ export const DataProvider = ({ children }) => {
     }
 
     setTestResults(loadedTestResults);
-    setSession(loadedSession);
-    if (loadedToken) setToken(loadedToken);
   }, []);
 
   const fetchStudents = async () => {
@@ -184,10 +196,11 @@ export const DataProvider = ({ children }) => {
   }, [session]);
 
   useEffect(() => {
-    if (token) {
-      localStorage.setItem('token', token);
-    } else {
-      localStorage.removeItem('token');
+    // Only sync token to localStorage after initial load is complete
+    if (isInitialLoadComplete.current) {
+      if (token) {
+        localStorage.setItem('token', token);
+      }
     }
   }, [token]);
 
@@ -491,13 +504,17 @@ export const DataProvider = ({ children }) => {
   const login = (role, username, studentId = null, token = null) => {
     const newSession = { role, username, studentId };
     setSession(newSession);
-    if (token) setToken(token);
+    if (token) {
+      setToken(token);
+      localStorage.setItem('token', token);
+    }
     return newSession;
   };
 
   const logout = () => {
     setSession(null);
     setToken(null);
+    localStorage.removeItem('token');
   };
 
   const value = {
