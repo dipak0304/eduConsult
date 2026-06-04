@@ -4,19 +4,25 @@ import Modal from '../../components/ui/Modal';
 import html2canvas from 'html2canvas';
 
 const TeacherAdmitted = () => {
-  const { students, fees } = useData();
+  const { students, fees, attendance } = useData();
   const [search, setSearch] = useState('');
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalView, setModalView] = useState('details'); // 'details' or 'bill'
   const billRef = useRef(null);
 
   const admittedStudents = students.filter((s) => s.isAdmitted);
 
   const filtered = admittedStudents.filter(
-    (s) =>
-      s.name.toLowerCase().includes(search.toLowerCase()) ||
-      s.email.toLowerCase().includes(search.toLowerCase()) ||
-      s.phone.includes(search)
+    (s) => {
+      const name = (s.name || s.fullName || '').toLowerCase();
+      const email = (s.email || '').toLowerCase();
+      const phone = s.phone || '';
+      const searchLower = search.toLowerCase();
+      return name.includes(searchLower) ||
+             email.includes(searchLower) ||
+             phone.includes(searchLower);
+    }
   );
 
   const handleStudentClick = (student) => {
@@ -26,6 +32,7 @@ const TeacherAdmitted = () => {
 
   const studentFees = selectedStudent ? fees.filter(f => f.studentId === selectedStudent.id) : [];
   const totalAmount = studentFees.reduce((sum, fee) => sum + (fee.amount || 0), 0);
+  const studentAttendance = selectedStudent ? attendance.filter(a => a.studentId === selectedStudent.id) : [];
 
   const handleDownload = async () => {
     if (billRef.current) {
@@ -50,7 +57,7 @@ const TeacherAdmitted = () => {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search admitted students..."
-          className="flex-1 sm:w-64 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-navy-800 text-sm text-gray-900 dark:text-white"
+          className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-navy-800 text-sm text-gray-900 dark:text-white w-48"
         />
       </div>
 
@@ -119,11 +126,88 @@ const TeacherAdmitted = () => {
         )}
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`${selectedStudent?.name}'s Fees`} extraButton={<button onClick={handleDownload} className="px-4 py-2 bg-cta-500 text-white rounded-lg hover:bg-cta-600 transition-colors flex items-center gap-2">
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={modalView === 'details' ? `${selectedStudent?.name}'s Details` : `${selectedStudent?.name}'s Fees`} extraButton={modalView === 'bill' && <button onClick={handleDownload} className="px-4 py-2 bg-cta-500 text-white rounded-lg hover:bg-cta-600 transition-colors flex items-center gap-2">
         <i className="fa-solid fa-download" /> Download as JPG
       </button>}>
-        {studentFees.length > 0 ? (
-          <div className="space-y-3">
+        {modalView === 'details' ? (
+          <div className="space-y-4">
+            <div className="flex items-center gap-4 mb-6">
+              <img src={selectedStudent?.photoUrl} alt={selectedStudent?.name} className="w-20 h-20 rounded-full object-cover" />
+              <div>
+                <h3 className="text-xl font-bold text-navy-900 dark:text-white">{selectedStudent?.name}</h3>
+                <p className="text-gray-600 dark:text-gray-400">{selectedStudent?.email}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 bg-gray-50 dark:bg-navy-800 rounded-lg">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Phone</p>
+                <p className="font-medium text-navy-900 dark:text-white">{selectedStudent?.phone || 'N/A'}</p>
+              </div>
+              <div className="p-4 bg-gray-50 dark:bg-navy-800 rounded-lg">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Qualification</p>
+                <p className="font-medium text-navy-900 dark:text-white">{selectedStudent?.qualification || 'N/A'}</p>
+              </div>
+              <div className="p-4 bg-gray-50 dark:bg-navy-800 rounded-lg">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Age</p>
+                <p className="font-medium text-navy-900 dark:text-white">{selectedStudent?.age || 'N/A'}</p>
+              </div>
+              <div className="p-4 bg-gray-50 dark:bg-navy-800 rounded-lg">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Address</p>
+                <p className="font-medium text-navy-900 dark:text-white break-words">{selectedStudent?.address || 'N/A'}</p>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="font-bold text-navy-900 dark:text-white mb-3">Enrolled Classes</h4>
+              {selectedStudent?.classes && selectedStudent.classes.length > 0 ? (
+                <div className="space-y-2">
+                  {selectedStudent.classes.map((classItem, index) => (
+                    <div key={index} className="p-3 bg-gray-50 dark:bg-navy-800 rounded-lg">
+                      <p className="font-medium text-navy-900 dark:text-white">{classItem.assignedClass || 'Class Not Specified'}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{classItem.classTime || 'Schedule Pending'}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 dark:text-gray-400">No classes assigned</p>
+              )}
+            </div>
+
+            <div>
+              <h4 className="font-bold text-navy-900 dark:text-white mb-3">Attendance Summary</h4>
+              {studentAttendance.length > 0 ? (
+                <div className="p-4 bg-gray-50 dark:bg-navy-800 rounded-lg">
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div>
+                      <p className="text-2xl font-bold text-green-600">{studentAttendance.filter(a => a.status === 'present').length}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Present</p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-red-600">{studentAttendance.filter(a => a.status === 'absent').length}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Absent</p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-gray-600">{studentAttendance.length}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Total</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-gray-500 dark:text-gray-400">No attendance records</p>
+              )}
+            </div>
+
+            <button
+              onClick={() => setModalView('bill')}
+              className="w-full px-4 py-3 bg-cta-500 text-white rounded-lg hover:bg-cta-600 transition-colors flex items-center justify-center gap-2"
+            >
+              <i className="fa-solid fa-file-invoice-dollar" /> View Fee Bill
+            </button>
+          </div>
+        ) : (
+          studentFees.length > 0 ? (
+            <div className="space-y-3">
             <div ref={billRef} className="bg-white p-6 rounded-lg border-2 border-gray-200">
               {/* Consultancy Header */}
               <div className="text-center mb-6 pb-4 border-b-2 border-cta-500">
@@ -193,11 +277,20 @@ const TeacherAdmitted = () => {
               </div>
             </div>
           </div>
-        ) : (
-          <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-            <i className="fa-solid fa-receipt text-3xl mb-2 opacity-30" />
-            <p>No fees found for this student</p>
-          </div>
+          ) : (
+            <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+              <i className="fa-solid fa-receipt text-3xl mb-2 opacity-30" />
+              <p>No fees found for this student</p>
+            </div>
+          )
+        )}
+        {modalView === 'bill' && (
+          <button
+            onClick={() => setModalView('details')}
+            className="w-full mt-4 px-4 py-3 bg-gray-200 dark:bg-navy-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-navy-700 transition-colors flex items-center justify-center gap-2"
+          >
+            <i className="fa-solid fa-arrow-left" /> Back to Details
+          </button>
         )}
       </Modal>
     </div>
