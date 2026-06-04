@@ -10,6 +10,7 @@ const TeacherFees = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isBillModalOpen, setIsBillModalOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const [formData, setFormData] = useState({
     studentId: '',
     description: '',
