@@ -15,18 +15,20 @@ const StudentDashboard = () => {
   const [activeSection, setActiveSection] = useState('profile');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const student = students.find(s => s.id === session?.studentId) || {
-    name: 'Rahul Sharma',
-    email: 'rahul@example.com',
-    phone: '+91 98765 43210',
-    qualification: 'B.Tech Computer Science',
-    age: 22,
-    address: '123, MG Road, Mumbai',
-    photoUrl: 'https://placehold.co/100x100/0f172a/22d3ee?text=RS',
-    assignedClass: 'Full Stack Web Development',
-    classTime: 'Mon-Wed-Fri 10:00 AM - 1:00 PM',
-    createdAt: new Date().toISOString(),
-  };
+  const student = students.find(s => s.id === session?.studentId);
+
+  if (!student) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-navy-950 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600 dark:text-gray-400 mb-4">Student not found</p>
+          <button onClick={handleLogout} className="text-blue-500 hover:text-blue-600">
+            Go to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const sections = [
     { id: 'profile', label: 'My Profile', icon: 'fa-user' },

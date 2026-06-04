@@ -427,8 +427,8 @@ export const DataProvider = ({ children }) => {
     setCourses(courses.filter(c => c.id !== id));
   };
 
-  const login = (role, username) => {
-    const newSession = { role, username, studentId: role === 'student' ? 's1' : null };
+  const login = (role, username, studentId = null) => {
+    const newSession = { role, username, studentId };
     setSession(newSession);
     return newSession;
   };

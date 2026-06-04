@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
+import crypto from 'crypto';
 import Student, { IStudent } from '../models/Student';
+import { sendWelcomeEmail } from '../utils/emailService';
 
 // Create a new student
 export const createStudent = async (req: Request, res: Response): Promise<void> => {
@@ -13,6 +15,9 @@ export const createStudent = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
+    // Generate random password
+    const password = crypto.randomBytes(8).toString('hex');
+
     const student: IStudent = new Student({
       fullName,
       email,
@@ -23,10 +28,17 @@ export const createStudent = async (req: Request, res: Response): Promise<void> 
       photoUrl,
       assignedClass,
       classTime,
+      password,
     });
 
     const savedStudent = await student.save();
-    res.status(201).json(savedStudent);
+
+    // Send welcome email with credentials
+    await sendWelcomeEmail(email, password, fullName);
+
+    res.status(201).json({
+      ...savedStudent.toObject(),
+    });
   } catch (error) {
     console.error('Error creating student:', error);
     res.status(500).json({ message: 'Error creating student', error });

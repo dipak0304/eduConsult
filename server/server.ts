@@ -5,6 +5,7 @@ import { connectDB } from './db';
 import studentRoutes from './routes/studentRoutes';
 import attendanceRoutes from './routes/attendanceRoutes';
 import feeRoutes from './routes/feeRoutes';
+import authRoutes from './routes/authRoutes';
 
 dotenv.config();
 
@@ -22,6 +23,7 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use('/api/students', studentRoutes);
 app.use('/api/attendance', attendanceRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/fees', feeRoutes);
 
 // Health check route

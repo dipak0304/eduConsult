@@ -1,4 +1,5 @@
 import mongoose, { Document, Schema } from 'mongoose';
+import bcrypt from 'bcrypt';
 
 export interface IStudent extends Document {
   fullName: string;
@@ -10,8 +11,14 @@ export interface IStudent extends Document {
   photoUrl: string;
   assignedClass?: string;
   classTime?: string;
+  password: string;
+  otp?: string;
+  otpExpiry?: Date;
+  otpRequestCount?: number;
+  otpRequestDate?: Date;
   createdAt: Date;
   updatedAt: Date;
+  comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
 const StudentSchema: Schema = new Schema(
@@ -61,10 +68,54 @@ const StudentSchema: Schema = new Schema(
       type: String,
       trim: true,
     },
+    password: {
+      type: String,
+      required: [true, 'Password is required'],
+      trim: true,
+      select: false,
+    },
+    otp: {
+      type: String,
+      trim: true,
+    },
+    otpExpiry: {
+      type: Date,
+    },
+    otpRequestCount: {
+      type: Number,
+      default: 0,
+    },
+    otpRequestDate: {
+      type: Date,
+    },
   },
   {
     timestamps: true,
   }
 );
+
+// Hash password before saving
+StudentSchema.pre('save', async function (next) {
+  const student = this as any;
+  
+  // Only hash the password if it has been modified (or is new)
+  if (!student.isModified('password')) {
+    return next();
+  }
+
+  try {
+    const salt = await bcrypt.genSalt(10);
+    const hash = await bcrypt.hash(student.password, salt);
+    student.password = hash;
+    next();
+  } catch (error) {
+    next(error as Error);
+  }
+});
+
+// Method to compare password
+StudentSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
+  return bcrypt.compare(candidatePassword, this.password);
+};
 
 export default mongoose.model<IStudent>('Student', StudentSchema);

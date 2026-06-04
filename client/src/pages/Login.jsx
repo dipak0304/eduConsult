@@ -3,14 +3,24 @@ import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
+import Toast from '../components/ui/Toast';
 
 const Login = () => {
   const navigate = useNavigate();
   const { login } = useData();
   const [selectedRole, setSelectedRole] = useState(null);
   const [teacherForm, setTeacherForm] = useState({ username: '', password: '' });
-  const [studentForm, setStudentForm] = useState({ username: '', password: '' });
+  const [studentForm, setStudentForm] = useState({ email: '', password: '' });
   const [errors, setErrors] = useState({});
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetStep, setResetStep] = useState(1); // 1: request, 2: reset
+  const [resetForm, setResetForm] = useState({ email: '', otp: '', newPassword: '', confirmPassword: '' });
+  const [resetMessage, setResetMessage] = useState('');
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const [isSendingOTP, setIsSendingOTP] = useState(false);
+  const [showStudentPassword, setShowStudentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleTeacherLogin = (e) => {
     e.preventDefault();
@@ -33,11 +43,11 @@ const Login = () => {
     }
   };
 
-  const handleStudentLogin = (e) => {
+  const handleStudentLogin = async (e) => {
     e.preventDefault();
     const newErrors = {};
     
-    if (!studentForm.username.trim()) newErrors.username = 'Username is required';
+    if (!studentForm.email.trim()) newErrors.email = 'Email is required';
     if (!studentForm.password.trim()) newErrors.password = 'Password is required';
     
     if (Object.keys(newErrors).length > 0) {
@@ -45,12 +55,109 @@ const Login = () => {
       return;
     }
 
-    // Demo credentials: rahul / rahul123
-    if (studentForm.username === 'rahul' && studentForm.password === 'rahul123') {
-      login('student', studentForm.username);
-      navigate('/student/dashboard');
-    } else {
-      setErrors({ login: 'Invalid credentials. Use rahul / rahul123' });
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api'}/auth/student-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          email: studentForm.email, 
+          password: studentForm.password 
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        login('student', data.student.fullName, data.student.id);
+        navigate('/student/dashboard');
+      } else {
+        setErrors({ login: data.message || 'Invalid credentials' });
+      }
+    } catch (error) {
+      setErrors({ login: 'Failed to login. Please try again.' });
+    }
+  };
+
+  const handleRequestReset = async (e) => {
+    e.preventDefault();
+    const newErrors = {};
+    
+    if (!resetForm.email.trim()) newErrors.email = 'Email is required';
+    
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    setIsSendingOTP(true);
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api'}/auth/request-password-reset`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: resetForm.email }),
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setResetMessage(data.message);
+        setResetStep(2);
+        setResetForm(prev => ({ ...prev, otp: '', newPassword: '', confirmPassword: '' }));
+        setToast({ show: true, message: data.message, type: 'success' });
+      } else {
+        setErrors({ reset: data.message || 'Failed to request password reset' });
+        setToast({ show: true, message: data.message || 'Failed to request password reset', type: 'error' });
+      }
+    } catch (error) {
+      setErrors({ reset: 'Failed to request password reset' });
+      setToast({ show: true, message: 'Failed to request password reset', type: 'error' });
+    } finally {
+      setIsSendingOTP(false);
+    }
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    const newErrors = {};
+    
+    if (!resetForm.email.trim()) newErrors.email = 'Email is required';
+    if (!resetForm.otp.trim()) newErrors.otp = 'OTP is required';
+    if (!resetForm.newPassword.trim()) newErrors.newPassword = 'New password is required';
+    if (resetForm.newPassword.length < 6) newErrors.newPassword = 'Password must be at least 6 characters';
+    if (resetForm.newPassword !== resetForm.confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
+    
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api'}/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          email: resetForm.email,
+          otp: resetForm.otp, 
+          newPassword: resetForm.newPassword 
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setToast({ show: true, message: data.message, type: 'success' });
+        setShowForgotPassword(false);
+        setResetStep(1);
+        setResetForm({ email: '', otp: '', newPassword: '', confirmPassword: '' });
+        setResetMessage('');
+      } else {
+        setErrors({ reset: data.message });
+        setToast({ show: true, message: data.message, type: 'error' });
+      }
+    } catch (error) {
+      setErrors({ reset: 'Failed to reset password' });
+      setToast({ show: true, message: 'Failed to reset password', type: 'error' });
     }
   };
 
@@ -157,7 +264,7 @@ const Login = () => {
           </div>
         )}
 
-        {selectedRole === 'student' && (
+        {selectedRole === 'student' && !showForgotPassword && (
           <div className="max-w-md mx-auto">
             <div className="bg-white dark:bg-navy-900 rounded-2xl p-8 shadow-xl shadow-gray-200/50 dark:shadow-none border border-gray-100 dark:border-gray-800">
               <button
@@ -178,33 +285,169 @@ const Login = () => {
               <form onSubmit={handleStudentLogin}>
                 <div className="space-y-4">
                   <Input
-                    label="Username"
-                    value={studentForm.username}
-                    onChange={(e) => setStudentForm({ ...studentForm, username: e.target.value })}
-                    error={errors.username}
-                    placeholder="Enter username"
+                    label="Email"
+                    type="email"
+                    value={studentForm.email}
+                    onChange={(e) => setStudentForm({ ...studentForm, email: e.target.value })}
+                    error={errors.email}
+                    placeholder="Enter your email"
                   />
-                  <Input
-                    label="Password"
-                    type="password"
-                    value={studentForm.password}
-                    onChange={(e) => setStudentForm({ ...studentForm, password: e.target.value })}
-                    error={errors.password}
-                    placeholder="Enter password"
-                  />
+                  <div className="relative">
+                    <Input
+                      label="Password"
+                      type={showStudentPassword ? 'text' : 'password'}
+                      value={studentForm.password}
+                      onChange={(e) => setStudentForm({ ...studentForm, password: e.target.value })}
+                      error={errors.password}
+                      placeholder="Enter password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowStudentPassword(!showStudentPassword)}
+                      className="absolute right-3 top-9 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    >
+                      <i className={`fa-solid ${showStudentPassword ? 'fa-eye-slash' : 'fa-eye'}`} />
+                    </button>
+                  </div>
                   {errors.login && (
                     <p className="text-red-500 text-xs">{errors.login}</p>
                   )}
                   <Button variant="secondary" type="submit" className="w-full">
                     Login as Student
                   </Button>
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotPassword(true)}
+                    className="w-full text-sm text-blue-500 hover:text-blue-600 mt-2"
+                  >
+                    Forgot Password?
+                  </button>
                 </div>
               </form>
-              <p className="text-xs text-gray-400 text-center mt-3">Demo: rahul / rahul123</p>
+            </div>
+          </div>
+        )}
+
+        {showForgotPassword && (
+          <div className="max-w-md mx-auto">
+            <div className="bg-white dark:bg-navy-900 rounded-2xl p-8 shadow-xl shadow-gray-200/50 dark:shadow-none border border-gray-100 dark:border-gray-800">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForgotPassword(false);
+                  setResetStep(1);
+                  setResetForm({ email: '', otp: '', newPassword: '', confirmPassword: '' });
+                  setResetMessage('');
+                  setErrors({});
+                  setShowStudentPassword(false);
+                  setShowNewPassword(false);
+                  setShowConfirmPassword(false);
+                }}
+                className="text-gray-500 hover:text-navy-900 dark:hover:text-white mb-6 flex items-center gap-2 text-sm font-semibold transition-colors"
+              >
+                <i className="fa-solid fa-arrow-left" /> Back
+              </button>
+              
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-gradient-to-br from-cta-500 to-cta-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-cta-500/30">
+                  <i className="fa-solid fa-key text-white text-2xl" />
+                </div>
+                <h3 className="text-xl font-bold text-navy-900 dark:text-white">
+                  {resetStep === 1 ? 'Forgot Password' : 'Reset Password'}
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                  {resetStep === 1 ? 'Enter your email to receive a reset link' : 'Enter the token and your new password'}
+                </p>
+              </div>
+              
+              {resetStep === 1 ? (
+                <form onSubmit={handleRequestReset}>
+                  <div className="space-y-4">
+                    <Input
+                      label="Email"
+                      type="email"
+                      value={resetForm.email}
+                      onChange={(e) => setResetForm({ ...resetForm, email: e.target.value })}
+                      error={errors.email}
+                      placeholder="Enter your email"
+                    />
+                    {errors.reset && (
+                      <p className="text-red-500 text-xs">{errors.reset}</p>
+                    )}
+                    {resetMessage && (
+                      <p className="text-emerald-500 text-xs">{resetMessage}</p>
+                    )}
+                    <Button type="submit" className="w-full" disabled={isSendingOTP}>
+                      {isSendingOTP ? 'Sending...' : 'Send OTP'}
+                    </Button>
+                  </div>
+                </form>
+              ) : (
+                <form onSubmit={handleResetPassword}>
+                  <div className="space-y-4">
+                    <Input
+                      label="OTP"
+                      value={resetForm.otp}
+                      onChange={(e) => setResetForm({ ...resetForm, otp: e.target.value })}
+                      error={errors.otp}
+                      placeholder="Enter the 6-digit OTP"
+                      maxLength={6}
+                    />
+                    <div className="relative">
+                      <Input
+                        label="New Password"
+                        type={showNewPassword ? 'text' : 'password'}
+                        value={resetForm.newPassword}
+                        onChange={(e) => setResetForm({ ...resetForm, newPassword: e.target.value })}
+                        error={errors.newPassword}
+                        placeholder="Enter new password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-3 top-9 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                      >
+                        <i className={`fa-solid ${showNewPassword ? 'fa-eye-slash' : 'fa-eye'}`} />
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <Input
+                        label="Confirm Password"
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        value={resetForm.confirmPassword}
+                        onChange={(e) => setResetForm({ ...resetForm, confirmPassword: e.target.value })}
+                        error={errors.confirmPassword}
+                        placeholder="Confirm new password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-9 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                      >
+                        <i className={`fa-solid ${showConfirmPassword ? 'fa-eye-slash' : 'fa-eye'}`} />
+                      </button>
+                    </div>
+                    {errors.reset && (
+                      <p className="text-red-500 text-xs">{errors.reset}</p>
+                    )}
+                    <Button type="submit" className="w-full">
+                      Reset Password
+                    </Button>
+                  </div>
+                </form>
+              )}
             </div>
           </div>
         )}
       </div>
+
+      {toast.show && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast({ ...toast, show: false })}
+        />
+      )}
     </div>
   );
 };
