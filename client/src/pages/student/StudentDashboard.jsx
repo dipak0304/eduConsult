@@ -36,20 +36,7 @@ const StudentDashboard = () => {
     navigate('/login');
   };
 
-  if (!student) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-navy-950 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600 dark:text-gray-400 mb-4">Student not found</p>
-          <button onClick={handleLogout} className="text-blue-500 hover:text-blue-600">
-            Go to Login
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (isLoading) {
+  if (isLoading || !student) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-navy-950 flex items-center justify-center">
         <div className="text-center">
