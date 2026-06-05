@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../../context/DataContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -10,12 +10,31 @@ import StudentAttendance from './StudentAttendance';
 
 const StudentDashboard = () => {
   const navigate = useNavigate();
-  const { logout, session, students } = useData();
+  const { logout, session, fetchStudentById, fetchStudentFees, fetchStudentAttendance } = useData();
   const { darkMode, toggleDarkMode } = useTheme();
   const [activeSection, setActiveSection] = useState('profile');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [student, setStudent] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const student = students.find(s => s.id === session?.studentId);
+  useEffect(() => {
+    const loadStudent = async () => {
+      if (session?.studentId) {
+        const studentData = await fetchStudentById(session.studentId);
+        setStudent(studentData);
+        // Fetch student-specific fees and attendance
+        await fetchStudentFees(session.studentId);
+        await fetchStudentAttendance(session.studentId);
+      }
+      setIsLoading(false);
+    };
+    loadStudent();
+  }, [session?.studentId, fetchStudentById, fetchStudentFees, fetchStudentAttendance]);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   if (!student) {
     return (
@@ -30,6 +49,17 @@ const StudentDashboard = () => {
     );
   }
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-navy-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cta-500 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   const sections = [
     { id: 'profile', label: 'My Profile', icon: 'fa-user' },
     { id: 'fees', label: 'Fee Status', icon: 'fa-money-bill' },
@@ -37,11 +67,6 @@ const StudentDashboard = () => {
     { id: 'tests', label: 'Mock Tests', icon: 'fa-file-lines' },
     { id: 'attendance', label: 'Attendance', icon: 'fa-calendar-check' },
   ];
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
 
   const renderSection = () => {
     switch (activeSection) {

@@ -117,6 +117,65 @@ export const DataProvider = ({ children }) => {
     }
   };
 
+  const fetchStudentById = async (studentId) => {
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      
+      const response = await fetch(`${API_BASE_URL}/students/${studentId}`, { headers });
+      if (response.ok) {
+        const data = await response.json();
+        // Map server response (fullName) to client format (name)
+        return {
+          ...data,
+          name: data.fullName,
+          id: data._id,
+        };
+      }
+    } catch (error) {
+      console.error('Error fetching student by ID:', error);
+    }
+    return null;
+  };
+
+  const fetchStudentFees = async (studentId) => {
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      
+      const response = await fetch(`${API_BASE_URL}/fees/student/${studentId}`, { headers });
+      if (response.ok) {
+        const data = await response.json();
+        const mappedFees = data.map(fee => ({
+          ...fee,
+          id: fee._id,
+        }));
+        setFees(mappedFees);
+      }
+    } catch (error) {
+      console.error('Error fetching student fees:', error);
+    }
+  };
+
+  const fetchStudentAttendance = async (studentId) => {
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      
+      const response = await fetch(`${API_BASE_URL}/attendance/student/${studentId}`, { headers });
+      if (response.ok) {
+        const data = await response.json();
+        const mappedAttendance = data.map(att => ({
+          ...att,
+          id: att._id,
+        }));
+        setAttendance(mappedAttendance);
+      }
+    } catch (error) {
+      console.error('Error fetching student attendance:', error);
+    }
+  };
+
   const fetchAttendance = async () => {
     try {
       const headers = { 'Content-Type': 'application/json' };
@@ -157,26 +216,26 @@ export const DataProvider = ({ children }) => {
     }
   };
 
-  // Fetch students from API on mount (only if authenticated)
+  // Fetch students from API on mount (only if authenticated as teacher)
   useEffect(() => {
-    if (token) {
+    if (token && session?.role === 'teacher') {
       fetchStudents();
     }
-  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [token, session?.role]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fetch attendance from API on mount (only if authenticated)
+  // Fetch attendance from API on mount (only if authenticated as teacher)
   useEffect(() => {
-    if (token) {
+    if (token && session?.role === 'teacher') {
       fetchAttendance();
     }
-  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [token, session?.role]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fetch fees from API on mount (only if authenticated)
+  // Fetch fees from API on mount (only if authenticated as teacher)
   useEffect(() => {
-    if (token) {
+    if (token && session?.role === 'teacher') {
       fetchFees();
     }
-  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [token, session?.role]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Save data to localStorage whenever it changes (for non-student data)
   useEffect(() => {
@@ -526,6 +585,10 @@ export const DataProvider = ({ children }) => {
     courses,
     session,
     token,
+    fetchStudents,
+    fetchStudentById,
+    fetchStudentFees,
+    fetchStudentAttendance,
     addStudent,
     updateStudent,
     deleteStudent,
