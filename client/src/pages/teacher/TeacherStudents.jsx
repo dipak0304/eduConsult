@@ -9,6 +9,7 @@ const TeacherStudents = () => {
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -58,6 +59,7 @@ const TeacherStudents = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
     try {
       const studentData = {
         fullName: formData.name,
@@ -83,6 +85,8 @@ const TeacherStudents = () => {
       setIsModalOpen(false);
     } catch (error) {
       alert(error.message || 'Failed to save student');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -270,11 +274,17 @@ const TeacherStudents = () => {
             </button>
           </div>
           <div className="flex gap-3 pt-2">
-            <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)} className="flex-1">
+            <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)} className="flex-1" disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit" className="flex-1">
-              {editingStudent ? 'Update' : 'Add'} Student
+            <Button type="submit" className="flex-1" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <i className="fa-solid fa-spinner fa-spin mr-1" /> {editingStudent ? 'Updating...' : 'Adding...'}
+                </>
+              ) : (
+                <>{editingStudent ? 'Update' : 'Add'} Student</>
+              )}
             </Button>
           </div>
         </form>
