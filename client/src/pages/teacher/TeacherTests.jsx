@@ -305,6 +305,8 @@ const TeacherTests = () => {
                 >
                   <option value="mcq">Multiple Choice (MCQ)</option>
                   <option value="writing">Writing</option>
+                  <option value="ielts-task-1">IELTS Task 1</option>
+                  <option value="ielts-task-2">IELTS Task 2</option>
                 </select>
                 <Input
                   value={q.question}

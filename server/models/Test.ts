@@ -1,6 +1,6 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
-export type QuestionType = 'mcq' | 'writing';
+export type QuestionType = 'mcq' | 'writing' | 'ielts-task-1' | 'ielts-task-2';
 
 export interface IQuestion {
   type: QuestionType;
@@ -20,7 +20,7 @@ export interface ITest extends Document {
 }
 
 const QuestionSchema = new Schema<IQuestion>({
-  type: { type: String, enum: ['mcq', 'writing'], default: 'mcq' },
+  type: { type: String, enum: ['mcq', 'writing', 'ielts-task-1', 'ielts-task-2'], default: 'mcq' },
   question: { type: String, default: '' },
   image: { type: String, default: '' },
   options: { type: [String], default: [] },

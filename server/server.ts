@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { connectDB } from './db';
+import { startPeriodicGradingChecker } from './controllers/aiGradingController';
 import studentRoutes from './routes/studentRoutes';
 import attendanceRoutes from './routes/attendanceRoutes';
 import feeRoutes from './routes/feeRoutes';
@@ -10,6 +11,7 @@ import courseRoutes from './routes/courseRoutes';
 import contactRoutes from './routes/contactRoutes';
 import testRoutes from './routes/testRoutes';
 import resultCheckingRoutes from './routes/resultCheckingRoutes';
+import aiGradingRoutes from './routes/aiGradingRoutes';
 
 dotenv.config();
 
@@ -33,6 +35,7 @@ app.use('/api/courses', courseRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/tests', testRoutes);
 app.use('/api/result-checking', resultCheckingRoutes);
+app.use('/api/ai-grading', aiGradingRoutes);
 
 // Health check route
 app.get('/', (req: Request, res: Response) => {
@@ -51,6 +54,8 @@ const startServer = async () => {
     await connectDB();
     app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
+      // Start periodic AI grading checker
+      startPeriodicGradingChecker();
     });
   } catch (error) {
     console.error('Failed to start server:', error);

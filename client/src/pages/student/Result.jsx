@@ -98,15 +98,22 @@ const Result = ({ student }) => {
                         <div className="flex items-center justify-between mb-2">
                           <h4 className="font-medium text-navy-900 dark:text-white">Question {i + 1}</h4>
                           {grade && (
-                            <span className={`px-2 py-1 text-xs font-semibold rounded ${
-                              grade.grade <= 5
-                                ? 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400'
-                                : grade.grade < 7
-                                ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400'
-                                : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
-                            }`}>
-                              {grade.grade}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className={`px-2 py-1 text-xs font-semibold rounded ${
+                                grade.grade <= 5
+                                  ? 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400'
+                                  : grade.grade < 7
+                                  ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400'
+                                  : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
+                              }`}>
+                                {grade.grade}
+                              </span>
+                              {grade.gradedBy === 'AI' && (
+                                <span className="px-2 py-1 text-xs font-semibold rounded bg-purple-100 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400">
+                                  <i className="fa-solid fa-robot mr-1" /> AI
+                                </span>
+                              )}
+                            </div>
                           )}
                         </div>
                         <p className="text-sm text-gray-700 dark:text-gray-300 mb-2 line-clamp-2">{q.question}</p>
@@ -174,7 +181,14 @@ const Result = ({ student }) => {
                     {grade ? (
                       <div className="p-3 bg-blue-50 dark:bg-blue-500/10 rounded">
                         <div className="flex items-center justify-between mb-2">
-                          <p className="text-sm font-medium text-blue-700 dark:text-blue-400">Grade: {grade.grade}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium text-blue-700 dark:text-blue-400">Grade: {grade.grade}</p>
+                            {grade.gradedBy === 'AI' && (
+                              <span className="px-2 py-1 text-xs font-semibold rounded bg-purple-100 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400">
+                                <i className="fa-solid fa-robot mr-1" /> AI Graded
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-gray-500 dark:text-gray-400">
                             Graded: {new Date(grade.gradedAt).toLocaleDateString()}
                           </p>

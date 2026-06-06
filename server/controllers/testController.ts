@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import Test from '../models/Test';
 import TestResult from '../models/TestResult';
+import { scheduleAutoGrading } from './aiGradingController';
 
 // Create a new test
 export const createTest = async (req: Request, res: Response) => {
@@ -97,6 +98,10 @@ export const submitTestResult = async (req: Request, res: Response) => {
     });
 
     const savedResult = await testResult.save();
+    
+    // Schedule auto-grading for writing answers
+    scheduleAutoGrading(savedResult._id.toString());
+    
     res.status(201).json(savedResult);
   } catch (error: any) {
     res.status(500).json({ message: 'Error submitting test result', error: error.message });
