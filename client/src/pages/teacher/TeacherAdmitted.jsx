@@ -286,7 +286,7 @@ const TeacherAdmitted = () => {
                 {/* Student Info */}
                 <div className="mb-6 p-4 bg-gray-50 rounded-lg">
                   <h3 className="font-bold text-navy-900 mb-2">Student Details</h3>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="grid grid-cols-2 gap-2 text-sm text-gray-900">
                     <p><span className="font-medium">Name:</span> {selectedStudent?.name}</p>
                     <p><span className="font-medium">Email:</span> {selectedStudent?.email}</p>
                     <p><span className="font-medium">Phone:</span> {selectedStudent?.phone}</p>
