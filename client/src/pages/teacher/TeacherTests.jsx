@@ -6,10 +6,13 @@ import Input from '../../components/ui/Input';
 const TeacherTests = () => {
   const [tests, setTests] = useState([]);
   const [testResults, setTestResults] = useState([]);
+  const [students, setStudents] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTest, setEditingTest] = useState(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [testToDelete, setTestToDelete] = useState(null);
+  const [attemptsModalOpen, setAttemptsModalOpen] = useState(false);
+  const [selectedTest, setSelectedTest] = useState(null);
   const [formData, setFormData] = useState({
     title: '',
     timeLimit: 15,
@@ -23,6 +26,7 @@ const TeacherTests = () => {
   useEffect(() => {
     fetchTests();
     fetchTestResults();
+    fetchStudents();
   }, []);
 
   const fetchTests = async () => {
@@ -51,11 +55,34 @@ const TeacherTests = () => {
           id: result._id,
           testId: result.testId?._id || result.testId,
           studentId: result.studentId?._id || result.studentId,
+          // Preserve populated student data
+          student: result.studentId,
         }));
         setTestResults(mappedResults);
       }
     } catch (error) {
       console.error('Error fetching test results:', error);
+    }
+  };
+
+  const fetchStudents = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/students`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        // Handle paginated response format
+        const studentsArray = data.students || data;
+        const mappedStudents = studentsArray.map(student => ({
+          ...student,
+          id: student._id,
+        }));
+        setStudents(mappedStudents);
+      }
+    } catch (error) {
+      console.error('Error fetching students:', error);
     }
   };
 
@@ -212,6 +239,11 @@ const TeacherTests = () => {
     }
   };
 
+  const handleViewAttempts = (test) => {
+    setSelectedTest(test);
+    setAttemptsModalOpen(true);
+  };
+
   return (
     <div>
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
@@ -225,10 +257,10 @@ const TeacherTests = () => {
         {tests.map((t) => {
           const attempts = testResults.filter((r) => r.testId === t.id).length;
           return (
-            <div key={t.id} className="bg-white dark:bg-navy-900 rounded-xl p-5 border border-gray-100 dark:border-gray-800 shadow-sm">
+            <div key={t.id} className="bg-white dark:bg-navy-900 rounded-xl p-5 border border-gray-100 dark:border-gray-800 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onClick={() => handleViewAttempts(t)}>
               <div className="flex items-start justify-between mb-3">
                 <h4 className="font-bold text-navy-900 dark:text-white">{t.title}</h4>
-                <div className="flex gap-2">
+                <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                   <button onClick={() => handleOpenModal(t)} className="text-blue-500 hover:text-blue-600 text-sm">
                     <i className="fa-solid fa-pen-to-square" />
                   </button>
@@ -390,6 +422,73 @@ const TeacherTests = () => {
               Delete
             </Button>
           </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={attemptsModalOpen} onClose={() => setAttemptsModalOpen(false)} title={`Students who attempted: ${selectedTest?.title}`}>
+        <div className="space-y-3">
+          {selectedTest && (() => {
+            const attempts = testResults.filter((r) => r.testId === selectedTest.id);
+            if (attempts.length === 0) {
+              return <p className="text-gray-500 dark:text-gray-400">No students have attempted this test yet.</p>;
+            }
+            return (
+              <div className="space-y-2">
+                {attempts.map((attempt) => {
+                  // Use preserved student data from API response
+                  const studentName = attempt.student?.fullName || 'Unknown Student';
+                  const studentEmail = attempt.student?.email || '';
+                  // Use createdAt instead of completedAt
+                  const attemptDate = attempt.createdAt || attempt.completedAt;
+                  
+                  // Calculate score from writingGrades if available
+                  let calculatedScore = 0;
+                  let totalGraded = 0;
+                  
+                  if (attempt.writingGrades) {
+                    Object.values(attempt.writingGrades).forEach((grade) => {
+                      if (grade && grade.grade !== undefined) {
+                        calculatedScore += grade.grade;
+                        totalGraded++;
+                      }
+                    });
+                  }
+                  
+                  // Use calculated score from writingGrades, otherwise use score field
+                  const scoreValue = totalGraded > 0
+                    ? calculatedScore
+                    : (attempt.score !== undefined && attempt.score !== null
+                        ? attempt.score
+                        : null);
+                  
+                  const scoreDisplay = scoreValue !== null ? scoreValue : 'Pending';
+                  
+                  // Determine color based on score
+                  const getScoreColor = (score) => {
+                    if (score === 'Pending' || score === null) return 'text-gray-500';
+                    if (score < 5) return 'text-red-600';
+                    if (score >= 7) return 'text-green-600';
+                    return 'text-yellow-600';
+                  };
+                  
+                  return (
+                    <div key={attempt.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-navy-800 rounded-lg">
+                      <div>
+                        <p className="font-medium text-navy-900 dark:text-white">{studentName}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{studentEmail}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-sm font-semibold ${getScoreColor(scoreValue)}`}>{scoreDisplay}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {attemptDate ? new Date(attemptDate).toLocaleDateString() : 'N/A'}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
       </Modal>
     </div>
