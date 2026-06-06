@@ -77,6 +77,7 @@ const TeacherAdmitted = () => {
 
   const handleStudentClick = (student) => {
     setSelectedStudent(student);
+    setModalView('details');
     setIsModalOpen(true);
   };
 
@@ -176,7 +177,7 @@ const TeacherAdmitted = () => {
         )}
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={modalView === 'details' ? `${selectedStudent?.name}'s Details` : modalView === 'bill' ? `${selectedStudent?.name}'s Fees` : modalView === 'testDetail' ? 'Test Result Details' : `${selectedStudent?.name}'s Test Attempts`} extraButton={modalView === 'bill' && <button onClick={handleDownload} className="px-4 py-2 bg-cta-500 text-white rounded-lg hover:bg-cta-600 transition-colors flex items-center gap-2">
+      <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setModalView('details'); }} title={modalView === 'details' ? `${selectedStudent?.name}'s Details` : modalView === 'bill' ? `${selectedStudent?.name}'s Fees` : modalView === 'testDetail' ? 'Test Result Details' : `${selectedStudent?.name}'s Test Attempts`} extraButton={modalView === 'bill' && <button onClick={handleDownload} className="px-4 py-2 bg-cta-500 text-white rounded-lg hover:bg-cta-600 transition-colors flex items-center gap-2">
         <i className="fa-solid fa-download" /> Download as JPG
       </button>}>
         {modalView === 'details' && (
