@@ -93,10 +93,10 @@ ADMIN_EMAIL=info@educonsult.pro
 # Groq API Key for AI Grading
 AI_API_KEY=your_groq_api_key_here
 
-# Teacher Email Credentials
-TEACHER_EMAIL=teacher_email@example.com
-TEACHER_PASS=teacher_password
-```
+# Teacher email credentials
+# Demo teacher login credentials
+TEACHER_EMAIL=dipakbohara@gmail.com
+TEACHER_PASS=dipak1234 
 
 ### Important Notes
 
