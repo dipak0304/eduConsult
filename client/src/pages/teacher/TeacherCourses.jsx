@@ -8,6 +8,8 @@ const TeacherCourses = () => {
   const { courses, addCourse, updateCourse, deleteCourse } = useData();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [courseToDelete, setCourseToDelete] = useState(null);
   const [editingCourse, setEditingCourse] = useState(null);
   const [formData, setFormData] = useState({
     title: '',
@@ -54,8 +56,15 @@ const TeacherCourses = () => {
   };
 
   const handleDelete = (id) => {
-    if (confirm('Are you sure you want to delete this course?')) {
-      deleteCourse(id);
+    setCourseToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (courseToDelete) {
+      deleteCourse(courseToDelete);
+      setIsDeleteModalOpen(false);
+      setCourseToDelete(null);
     }
   };
 
@@ -154,6 +163,20 @@ const TeacherCourses = () => {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} title="Delete Course">
+        <div className="space-y-4">
+          <p className="text-gray-700 dark:text-gray-300">Are you sure you want to delete this course? This action cannot be undone.</p>
+          <div className="flex gap-3 pt-2">
+            <Button type="button" variant="ghost" onClick={() => setIsDeleteModalOpen(false)} className="flex-1">
+              Cancel
+            </Button>
+            <Button type="button" onClick={confirmDelete} className="flex-1 bg-red-600 hover:bg-red-700">
+              Delete
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
