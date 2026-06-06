@@ -85,12 +85,13 @@ export const deleteTest = async (req: Request, res: Response) => {
 // Submit a test result
 export const submitTestResult = async (req: Request, res: Response) => {
   try {
-    const { testId, studentId, answers, score, totalQuestions } = req.body;
+    const { testId, studentId, answers, writingAnswers, score, totalQuestions } = req.body;
 
     const testResult = new TestResult({
       testId,
       studentId,
       answers,
+      writingAnswers,
       score,
       totalQuestions,
     });
@@ -108,6 +109,7 @@ export const getStudentTestResults = async (req: Request, res: Response) => {
     const { studentId } = req.params;
     const results = await TestResult.find({ studentId })
       .populate('testId')
+      .populate('studentId')
       .sort({ createdAt: -1 });
     res.status(200).json(results);
   } catch (error: any) {

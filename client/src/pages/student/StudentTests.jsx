@@ -7,6 +7,7 @@ const StudentTests = ({ student }) => {
   const [quizState, setQuizState] = useState(null);
   const [quizTimer, setQuizTimer] = useState(null);
   const [writingAnswers, setWritingAnswers] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
 
@@ -93,9 +94,13 @@ const StudentTests = ({ student }) => {
   const submitQuiz = async () => {
     if (!quizState || quizState.submitted) return;
     clearInterval(quizTimer);
+    setIsSubmitting(true);
     
     const test = tests.find(t => t.id === quizState.testId);
-    if (!test) return;
+    if (!test) {
+      setIsSubmitting(false);
+      return;
+    }
     
     let score = 0;
     test.questions.forEach((q, i) => {
@@ -112,6 +117,7 @@ const StudentTests = ({ student }) => {
       totalQuestions: test.questions.filter(q => q.type === 'mcq').length,
     });
     
+    setIsSubmitting(false);
     setQuizState({ ...quizState, submitted: true });
   };
 
@@ -263,7 +269,9 @@ const StudentTests = ({ student }) => {
                 })}
               </div>
               {quizState.currentQ === total - 1 ? (
-                <Button onClick={submitQuiz}>Submit</Button>
+                <Button onClick={submitQuiz} disabled={isSubmitting}>
+                  {isSubmitting ? 'Submitting...' : 'Submit'}
+                </Button>
               ) : (
                 <button
                   onClick={() => quizNav(1)}

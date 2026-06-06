@@ -7,6 +7,7 @@ import StudentFees from './StudentFees';
 import StudentClasses from './StudentClasses';
 import StudentTests from './StudentTests';
 import StudentAttendance from './StudentAttendance';
+import Result from './Result';
 
 const StudentDashboard = () => {
   const navigate = useNavigate();
@@ -52,6 +53,7 @@ const StudentDashboard = () => {
     { id: 'fees', label: 'Fee Status', icon: 'fa-money-bill' },
     { id: 'classes', label: 'My Classes', icon: 'fa-chalkboard-user' },
     { id: 'tests', label: 'Mock Tests', icon: 'fa-file-lines' },
+    { id: 'result', label: 'Results', icon: 'fa-clipboard-list' },
     { id: 'attendance', label: 'Attendance', icon: 'fa-calendar-check' },
   ];
 
@@ -65,6 +67,8 @@ const StudentDashboard = () => {
         return <StudentClasses student={student} />;
       case 'tests':
         return <StudentTests student={student} />;
+      case 'result':
+        return <Result student={student} />;
       case 'attendance':
         return <StudentAttendance student={student} />;
       default:

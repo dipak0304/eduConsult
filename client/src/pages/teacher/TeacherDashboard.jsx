@@ -9,6 +9,7 @@ import TeacherFees from './TeacherFees';
 import TeacherAttendance from './TeacherAttendance';
 import TeacherTests from './TeacherTests';
 import TeacherCourses from './TeacherCourses';
+import ResultChecking from './ResultChecking';
 
 const TeacherDashboard = () => {
   const navigate = useNavigate();
@@ -24,6 +25,7 @@ const TeacherDashboard = () => {
     { id: 'fees', label: 'Fees', icon: 'fa-indian-rupee-sign' },
     { id: 'attendance', label: 'Attendance', icon: 'fa-calendar-check' },
     { id: 'tests', label: 'Tests', icon: 'fa-file-lines' },
+    { id: 'result-checking', label: 'Result Checking', icon: 'fa-clipboard-check' },
     { id: 'courses', label: 'Courses', icon: 'fa-book-open' },
   ];
 
@@ -46,6 +48,8 @@ const TeacherDashboard = () => {
         return <TeacherAttendance />;
       case 'tests':
         return <TeacherTests />;
+      case 'result-checking':
+        return <ResultChecking />;
       case 'courses':
         return <TeacherCourses />;
       default:
