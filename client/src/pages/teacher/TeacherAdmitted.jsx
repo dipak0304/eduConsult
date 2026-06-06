@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useData } from '../../context/DataContext';
 import Modal from '../../components/ui/Modal';
 import html2canvas from 'html2canvas';
@@ -8,8 +8,58 @@ const TeacherAdmitted = () => {
   const [search, setSearch] = useState('');
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalView, setModalView] = useState('details'); // 'details' or 'bill'
+  const [modalView, setModalView] = useState('details'); // 'details', 'bill', 'tests', or 'testDetail'
+  const [testResults, setTestResults] = useState([]);
+  const [tests, setTests] = useState([]);
+  const [selectedTestResult, setSelectedTestResult] = useState(null);
   const billRef = useRef(null);
+
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
+
+  useEffect(() => {
+    if (selectedStudent) {
+      fetchStudentTestResults();
+      fetchTests();
+    }
+  }, [selectedStudent]);
+
+  const fetchStudentTestResults = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/tests/results/student/${selectedStudent.id}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const mappedResults = data.map(result => ({
+          ...result,
+          id: result._id,
+          testId: result.testId?._id || result.testId,
+          studentId: result.studentId?._id || result.studentId,
+          student: result.studentId,
+        }));
+        setTestResults(mappedResults);
+      }
+    } catch (error) {
+      console.error('Error fetching student test results:', error);
+    }
+  };
+
+  const fetchTests = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/tests`);
+      if (response.ok) {
+        const data = await response.json();
+        const mappedTests = data.map(test => ({
+          ...test,
+          id: test._id,
+        }));
+        setTests(mappedTests);
+      }
+    } catch (error) {
+      console.error('Error fetching tests:', error);
+    }
+  };
 
   const admittedStudents = students.filter((s) => s.isAdmitted);
 
@@ -126,10 +176,10 @@ const TeacherAdmitted = () => {
         )}
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={modalView === 'details' ? `${selectedStudent?.name}'s Details` : `${selectedStudent?.name}'s Fees`} extraButton={modalView === 'bill' && <button onClick={handleDownload} className="px-4 py-2 bg-cta-500 text-white rounded-lg hover:bg-cta-600 transition-colors flex items-center gap-2">
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={modalView === 'details' ? `${selectedStudent?.name}'s Details` : modalView === 'bill' ? `${selectedStudent?.name}'s Fees` : modalView === 'testDetail' ? 'Test Result Details' : `${selectedStudent?.name}'s Test Attempts`} extraButton={modalView === 'bill' && <button onClick={handleDownload} className="px-4 py-2 bg-cta-500 text-white rounded-lg hover:bg-cta-600 transition-colors flex items-center gap-2">
         <i className="fa-solid fa-download" /> Download as JPG
       </button>}>
-        {modalView === 'details' ? (
+        {modalView === 'details' && (
           <div className="space-y-4">
             <div className="flex items-center gap-4 mb-6">
               <img src={selectedStudent?.photoUrl} alt={selectedStudent?.name} className="w-20 h-20 rounded-full object-cover" />
@@ -198,100 +248,255 @@ const TeacherAdmitted = () => {
               )}
             </div>
 
+            <div className="flex gap-3">
+              <button
+                onClick={() => setModalView('bill')}
+                className="flex-1 px-4 py-3 bg-cta-500 text-white rounded-lg hover:bg-cta-600 transition-colors flex items-center justify-center gap-2"
+              >
+                <i className="fa-solid fa-file-invoice-dollar" /> View Fee Bill
+              </button>
+              <button
+                onClick={() => setModalView('tests')}
+                className="flex-1 px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+              >
+                <i className="fa-solid fa-clipboard-list" /> View Test Attempts
+              </button>
+            </div>
+          </div>
+        )}
+        
+        {modalView === 'bill' && (
+          <div className="space-y-3">
+            {studentFees.length > 0 ? (
+              <div ref={billRef} className="bg-white p-6 rounded-lg border-2 border-gray-200">
+                {/* Consultancy Header */}
+                <div className="text-center mb-6 pb-4 border-b-2 border-cta-500">
+                  <h1 className="text-2xl font-bold text-navy-900 mb-1">deepu consultancy</h1>
+                  <p className="text-sm text-gray-600">Kathmandu, Nepal</p>
+                  <p className="text-sm text-gray-600">info@consultancy.com</p>
+                </div>
+
+                {/* Bill Title */}
+                <div className="text-center mb-6">
+                  <h2 className="text-xl font-bold text-navy-900">FEE RECEIPT</h2>
+                  <p className="text-sm text-gray-500">Date: {new Date().toLocaleDateString()}</p>
+                </div>
+
+                {/* Student Info */}
+                <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                  <h3 className="font-bold text-navy-900 mb-2">Student Details</h3>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <p><span className="font-medium">Name:</span> {selectedStudent?.name}</p>
+                    <p><span className="font-medium">Email:</span> {selectedStudent?.email}</p>
+                    <p><span className="font-medium">Phone:</span> {selectedStudent?.phone}</p>
+                    <p><span className="font-medium">Class:</span> {selectedStudent?.assignedClass || 'N/A'}</p>
+                  </div>
+                </div>
+
+                {/* Fee Details */}
+                <div className="mb-6">
+                  <h3 className="font-bold text-navy-900 mb-3">Fee Details</h3>
+                  {studentFees.map((fee) => (
+                    <div key={fee.id} className="flex justify-between items-center py-2 border-b border-gray-200">
+                      <div>
+                        <p className="font-medium text-navy-900">{fee.description}</p>
+                        <p className="text-xs text-gray-500">Due: {fee.dueDate ? new Date(fee.dueDate).toLocaleDateString() : 'N/A'}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-navy-900">Rs. {fee.amount}</p>
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          fee.status === 'paid' 
+                            ? 'bg-green-100 text-green-700' 
+                            : 'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {fee.status.charAt(0).toUpperCase() + fee.status.slice(1)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Total */}
+                <div className="flex justify-between items-center py-3 border-t-2 border-gray-300 mt-4">
+                  <p className="text-lg font-bold text-navy-900">Total Amount</p>
+                  <p className="text-2xl font-bold text-cta-600">Rs. {totalAmount}</p>
+                </div>
+
+                {/* Stamp */}
+                <div className="mt-6 flex justify-center">
+                  <div className="border-2 border-cta-500 rounded-lg p-3 transform -rotate-12 opacity-80">
+                    <p className="text-center font-bold text-cta-600 text-sm">PAID</p>
+                    <p className="text-center text-xs text-gray-600">{new Date().toLocaleDateString()}</p>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="mt-6 pt-4 border-t border-gray-200 text-center text-xs text-gray-500">
+                  <p>Thank you for your payment!</p>
+                  <p>For queries, contact: info@consultancy.com</p>
+                </div>
+              </div>
+            ) : (
+              <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+                <i className="fa-solid fa-receipt text-3xl mb-2 opacity-30" />
+                <p>No fees found for this student</p>
+              </div>
+            )}
             <button
-              onClick={() => setModalView('bill')}
-              className="w-full px-4 py-3 bg-cta-500 text-white rounded-lg hover:bg-cta-600 transition-colors flex items-center justify-center gap-2"
+              onClick={() => setModalView('details')}
+              className="w-full mt-4 px-4 py-3 bg-gray-200 dark:bg-navy-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-navy-700 transition-colors flex items-center justify-center gap-2"
             >
-              <i className="fa-solid fa-file-invoice-dollar" /> View Fee Bill
+              <i className="fa-solid fa-arrow-left" /> Back to Details
             </button>
           </div>
-        ) : (
-          studentFees.length > 0 ? (
-            <div className="space-y-3">
-            <div ref={billRef} className="bg-white p-6 rounded-lg border-2 border-gray-200">
-              {/* Consultancy Header */}
-              <div className="text-center mb-6 pb-4 border-b-2 border-cta-500">
-                <h1 className="text-2xl font-bold text-navy-900 mb-1">deepu consultancy</h1>
-                <p className="text-sm text-gray-600">Kathmandu, Nepal</p>
-                <p className="text-sm text-gray-600">info@consultancy.com</p>
-              </div>
-
-              {/* Bill Title */}
-              <div className="text-center mb-6">
-                <h2 className="text-xl font-bold text-navy-900">FEE RECEIPT</h2>
-                <p className="text-sm text-gray-500">Date: {new Date().toLocaleDateString()}</p>
-              </div>
-
-              {/* Student Info */}
-              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-                <h3 className="font-bold text-navy-900 mb-2">Student Details</h3>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <p><span className="font-medium">Name:</span> {selectedStudent?.name}</p>
-                  <p><span className="font-medium">Email:</span> {selectedStudent?.email}</p>
-                  <p><span className="font-medium">Phone:</span> {selectedStudent?.phone}</p>
-                  <p><span className="font-medium">Class:</span> {selectedStudent?.assignedClass || 'N/A'}</p>
-                </div>
-              </div>
-
-              {/* Fee Details */}
-              <div className="mb-6">
-                <h3 className="font-bold text-navy-900 mb-3">Fee Details</h3>
-                {studentFees.map((fee) => (
-                  <div key={fee.id} className="flex justify-between items-center py-2 border-b border-gray-200">
-                    <div>
-                      <p className="font-medium text-navy-900">{fee.description}</p>
-                      <p className="text-xs text-gray-500">Due: {fee.dueDate ? new Date(fee.dueDate).toLocaleDateString() : 'N/A'}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-navy-900">Rs. {fee.amount}</p>
-                      <span className={`text-xs px-2 py-1 rounded-full ${
-                        fee.status === 'paid' 
-                          ? 'bg-green-100 text-green-700' 
-                          : 'bg-yellow-100 text-yellow-700'
-                      }`}>
-                        {fee.status.charAt(0).toUpperCase() + fee.status.slice(1)}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Total */}
-              <div className="flex justify-between items-center py-3 border-t-2 border-gray-300 mt-4">
-                <p className="text-lg font-bold text-navy-900">Total Amount</p>
-                <p className="text-2xl font-bold text-cta-600">Rs. {totalAmount}</p>
-              </div>
-
-              {/* Stamp */}
-              <div className="mt-6 flex justify-center">
-                <div className="border-2 border-cta-500 rounded-lg p-3 transform -rotate-12 opacity-80">
-                  <p className="text-center font-bold text-cta-600 text-sm">PAID</p>
-                  <p className="text-center text-xs text-gray-600">{new Date().toLocaleDateString()}</p>
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="mt-6 pt-4 border-t border-gray-200 text-center text-xs text-gray-500">
-                <p>Thank you for your payment!</p>
-                <p>For queries, contact: info@consultancy.com</p>
-              </div>
+        )}
+        
+        {modalView === 'tests' && (
+          <div className="space-y-4">
+            <div className="p-4 bg-blue-50 dark:bg-blue-500/10 rounded-lg">
+              <p className="text-sm text-gray-600 dark:text-gray-400">Total Tests Attempted</p>
+              <p className="text-2xl font-bold text-blue-600">{testResults.length}</p>
             </div>
+            {testResults.length > 0 ? (
+              <div className="space-y-3">
+                {testResults.map((attempt) => {
+                  const test = tests.find(t => t.id === attempt.testId);
+                  // Calculate score from writingGrades if available
+                  let calculatedScore = 0;
+                  let totalGraded = 0;
+                  
+                  if (attempt.writingGrades) {
+                    Object.values(attempt.writingGrades).forEach((grade) => {
+                      if (grade && grade.grade !== undefined) {
+                        calculatedScore += grade.grade;
+                        totalGraded++;
+                      }
+                    });
+                  }
+                  
+                  const scoreValue = totalGraded > 0
+                    ? calculatedScore
+                    : (attempt.score !== undefined && attempt.score !== null
+                        ? attempt.score
+                        : null);
+                  
+                  const scoreDisplay = scoreValue !== null ? scoreValue : 'Pending';
+                  
+                  const getScoreColor = (score) => {
+                    if (score === 'Pending' || score === null) return 'text-gray-500';
+                    if (score < 5) return 'text-red-600';
+                    if (score >= 7) return 'text-green-600';
+                    return 'text-yellow-600';
+                  };
+                  
+                  const attemptDate = attempt.createdAt || attempt.completedAt;
+                  
+                  return (
+                    <div key={attempt.id} className="p-4 bg-gray-50 dark:bg-navy-800 rounded-lg cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setSelectedTestResult(attempt); setModalView('testDetail'); }}>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-bold text-navy-900 dark:text-white">{test?.title || 'Unknown Test'}</h4>
+                        <span className={`text-sm font-semibold ${getScoreColor(scoreValue)}`}>{scoreDisplay}</span>
+                      </div>
+                      <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+                        <span>
+                          <i className="fa-regular fa-clock mr-1" />
+                          {attemptDate ? new Date(attemptDate).toLocaleDateString() : 'N/A'}
+                        </span>
+                        <span>
+                          <i className="fa-solid fa-list-ol mr-1" />
+                          {test?.questions?.length || 0} questions
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+                <i className="fa-solid fa-clipboard-list text-3xl mb-2 opacity-30" />
+                <p>No test attempts found</p>
+              </div>
+            )}
+            <button
+              onClick={() => setModalView('details')}
+              className="w-full px-4 py-3 bg-gray-200 dark:bg-navy-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-navy-700 transition-colors flex items-center justify-center gap-2"
+            >
+              <i className="fa-solid fa-arrow-left" /> Back to Details
+            </button>
           </div>
-          ) : (
-            <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-              <i className="fa-solid fa-receipt text-3xl mb-2 opacity-30" />
-              <p>No fees found for this student</p>
-            </div>
-          )
         )}
-        {modalView === 'bill' && (
-          <button
-            onClick={() => setModalView('details')}
-            className="w-full mt-4 px-4 py-3 bg-gray-200 dark:bg-navy-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-navy-700 transition-colors flex items-center justify-center gap-2"
-          >
-            <i className="fa-solid fa-arrow-left" /> Back to Details
-          </button>
-        )}
+        
+        {modalView === 'testDetail' && selectedTestResult && (() => {
+          const test = tests.find(t => t.id === selectedTestResult.testId);
+          return (
+            <div className="space-y-4">
+              <div className="p-4 bg-blue-50 dark:bg-blue-500/10 rounded-lg">
+                <h4 className="font-bold text-navy-900 dark:text-white mb-2">{test?.title || 'Unknown Test'}</h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Attempted: {selectedTestResult.createdAt ? new Date(selectedTestResult.createdAt).toLocaleDateString() : 'N/A'}
+                </p>
+              </div>
+            
+            {test?.questions && test.questions.map((question, index) => {
+              const userAnswer = selectedTestResult.answers?.[index];
+              const writingAnswer = selectedTestResult.writingAnswers?.[index];
+              const writingGrade = selectedTestResult.writingGrades?.[index];
+              const isWriting = question.type !== 'mcq';
+              
+              return (
+                <div key={index} className="p-4 bg-gray-50 dark:bg-navy-800 rounded-lg">
+                  <div className="flex items-start justify-between mb-3">
+                    <h5 className="font-semibold text-navy-900 dark:text-white">Q{index + 1}: {question.question}</h5>
+                    {writingGrade && (
+                      <span className="text-sm font-semibold text-green-600">
+                        Grade: {writingGrade.grade}
+                      </span>
+                    )}
+                  </div>
+                  
+                  {question.image && (
+                    <img src={question.image} alt="Question" className="w-full h-40 object-cover rounded-lg mb-3" />
+                  )}
+                  
+                  <div className="mb-3">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Your Answer:</p>
+                    {isWriting ? (
+                      <p className="text-navy-900 dark:text-white bg-white dark:bg-navy-900 p-3 rounded-lg">
+                        {writingAnswer || 'No answer provided'}
+                      </p>
+                    ) : (
+                      <p className="text-navy-900 dark:text-white">
+                        {question.options?.[userAnswer] || 'No answer provided'}
+                      </p>
+                    )}
+                  </div>
+                  
+                  {writingGrade && writingGrade.feedback && (
+                    <div className="p-3 bg-yellow-50 dark:bg-yellow-500/10 rounded-lg">
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Feedback:</p>
+                      <p className="text-navy-900 dark:text-white">{writingGrade.feedback}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Graded: {writingGrade.gradedAt ? new Date(writingGrade.gradedAt).toLocaleDateString() : 'N/A'}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {isWriting && !writingGrade && (
+                    <p className="text-sm text-gray-500 dark:text-gray-400 italic">Not yet graded</p>
+                  )}
+                </div>
+              );
+            })}
+            
+            <button
+              onClick={() => setModalView('tests')}
+              className="w-full px-4 py-3 bg-gray-200 dark:bg-navy-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-navy-700 transition-colors flex items-center justify-center gap-2"
+            >
+              <i className="fa-solid fa-arrow-left" /> Back to Test Attempts
+            </button>
+          </div>
+          );
+        })()}
       </Modal>
     </div>
   );
