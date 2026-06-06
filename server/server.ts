@@ -8,6 +8,7 @@ import feeRoutes from './routes/feeRoutes';
 import authRoutes from './routes/authRoutes';
 import courseRoutes from './routes/courseRoutes';
 import contactRoutes from './routes/contactRoutes';
+import testRoutes from './routes/testRoutes';
 
 dotenv.config();
 
@@ -29,6 +30,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/fees', feeRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/tests', testRoutes);
 
 // Health check route
 app.get('/', (req: Request, res: Response) => {

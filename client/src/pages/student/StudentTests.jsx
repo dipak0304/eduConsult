@@ -1,11 +1,69 @@
-import React, { useState } from 'react';
-import { useData } from '../../context/DataContext';
+import React, { useState, useEffect } from 'react';
 import Button from '../../components/ui/Button';
 
 const StudentTests = ({ student }) => {
-  const { tests, testResults, addTestResult } = useData();
+  const [tests, setTests] = useState([]);
+  const [testResults, setTestResults] = useState([]);
   const [quizState, setQuizState] = useState(null);
   const [quizTimer, setQuizTimer] = useState(null);
+  const [writingAnswers, setWritingAnswers] = useState({});
+
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
+
+  useEffect(() => {
+    fetchTests();
+    fetchTestResults();
+  }, [student]);
+
+  const fetchTests = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/tests`);
+      if (response.ok) {
+        const data = await response.json();
+        const mappedTests = data.map(test => ({
+          ...test,
+          id: test._id,
+        }));
+        setTests(mappedTests);
+      }
+    } catch (error) {
+      console.error('Error fetching tests:', error);
+    }
+  };
+
+  const fetchTestResults = async () => {
+    if (!student) return;
+    try {
+      const response = await fetch(`${API_BASE_URL}/tests/results/student/${student.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        const mappedResults = data.map(result => ({
+          ...result,
+          id: result._id,
+          testId: result.testId?._id || result.testId,
+          studentId: result.studentId?._id || result.studentId,
+        }));
+        setTestResults(mappedResults);
+      }
+    } catch (error) {
+      console.error('Error fetching test results:', error);
+    }
+  };
+
+  const addTestResult = async (resultData) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/tests/results`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(resultData),
+      });
+      if (response.ok) {
+        await fetchTestResults();
+      }
+    } catch (error) {
+      console.error('Error submitting test result:', error);
+    }
+  };
 
   const startTest = (testId) => {
     const test = tests.find(t => t.id === testId);
@@ -32,7 +90,7 @@ const StudentTests = ({ student }) => {
     setQuizTimer(timer);
   };
 
-  const submitQuiz = () => {
+  const submitQuiz = async () => {
     if (!quizState || quizState.submitted) return;
     clearInterval(quizTimer);
     
@@ -41,15 +99,17 @@ const StudentTests = ({ student }) => {
     
     let score = 0;
     test.questions.forEach((q, i) => {
-      if (quizState.answers[i] === q.correctAnswer) score++;
+      if (q.type === 'mcq' && quizState.answers[i] === q.correctAnswer) score++;
+      // Writing questions are not auto-graded
     });
     
-    addTestResult({
+    await addTestResult({
       testId: quizState.testId,
       studentId: student.id,
       answers: { ...quizState.answers },
+      writingAnswers: { ...writingAnswers },
       score,
-      totalQuestions: test.questions.length,
+      totalQuestions: test.questions.filter(q => q.type === 'mcq').length,
     });
     
     setQuizState({ ...quizState, submitted: true });
@@ -59,6 +119,13 @@ const StudentTests = ({ student }) => {
     setQuizState({
       ...quizState,
       answers: { ...quizState.answers, [quizState.currentQ]: idx },
+    });
+  };
+
+  const setWritingAnswer = (text) => {
+    setWritingAnswers({
+      ...writingAnswers,
+      [quizState.currentQ]: text,
     });
   };
 
@@ -115,29 +182,49 @@ const StudentTests = ({ student }) => {
           <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
             <div className="max-w-2xl mx-auto">
               <p className="text-sm text-blue-500 font-semibold mb-2">Question {quizState.currentQ + 1}</p>
+              {q.image && (
+                <img src={q.image} alt="Question" className="w-full h-48 object-cover rounded-lg mb-4" />
+              )}
               <h2 className="text-lg sm:text-xl font-bold text-navy-900 dark:text-white mb-6">{q.question}</h2>
-              <div className="space-y-3">
-                {q.options.map((opt, i) => (
-                  <button
-                    key={i}
-                    onClick={() => selectAnswer(i)}
-                    className={`w-full text-left px-4 py-3.5 rounded-xl border-2 transition-all flex items-center gap-3 ${
-                      quizState.answers[quizState.currentQ] === i
-                        ? 'border-blue-500 bg-blue-500/5'
-                        : 'border-gray-200 dark:border-gray-700'
-                    }`}
-                  >
-                    <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0 ${
-                      quizState.answers[quizState.currentQ] === i
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-100 dark:bg-navy-800 text-gray-600 dark:text-gray-400'
-                    }`}>
-                      {String.fromCharCode(65 + i)}
-                    </span>
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{opt}</span>
-                  </button>
-                ))}
-              </div>
+              
+              {q.type === 'mcq' ? (
+                <div className="space-y-3">
+                  {q.options.map((opt, i) => (
+                    <button
+                      key={i}
+                      onClick={() => selectAnswer(i)}
+                      className={`w-full text-left px-4 py-3.5 rounded-xl border-2 transition-all flex items-center gap-3 ${
+                        quizState.answers[quizState.currentQ] === i
+                          ? 'border-blue-500 bg-blue-500/5'
+                          : 'border-gray-200 dark:border-gray-700'
+                      }`}
+                    >
+                      <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0 ${
+                        quizState.answers[quizState.currentQ] === i
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-100 dark:bg-navy-800 text-gray-600 dark:text-gray-400'
+                      }`}>
+                        {String.fromCharCode(65 + i)}
+                      </span>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{opt}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Word limit: {q.wordLimit || 300} words</p>
+                  <textarea
+                    value={writingAnswers[quizState.currentQ] || ''}
+                    onChange={(e) => setWritingAnswer(e.target.value)}
+                    placeholder="Write your answer here..."
+                    rows={10}
+                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-navy-800 text-gray-900 dark:text-white text-sm focus:border-blue-500 focus:outline-none resize-none"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Word count: {(writingAnswers[quizState.currentQ] || '').split(/\s+/).filter(w => w).length} / {q.wordLimit || 300}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
           
@@ -152,21 +239,28 @@ const StudentTests = ({ student }) => {
                 <i className="fa-solid fa-chevron-left mr-1" /> Previous
               </button>
               <div className="flex gap-1 flex-wrap justify-center">
-                {test.questions.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => quizGoTo(i)}
-                    className={`w-7 h-7 rounded text-[10px] font-bold flex items-center justify-center transition-colors ${
-                      i === quizState.currentQ
-                        ? 'bg-blue-500 text-white'
-                        : quizState.answers[i] !== undefined
-                        ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400'
-                        : 'bg-gray-100 dark:bg-navy-800 text-gray-500 dark:text-gray-400'
-                    }`}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
+                {test.questions.map((_, i) => {
+                  const q = test.questions[i];
+                  const isAnswered = q.type === 'mcq' 
+                    ? quizState.answers[i] !== undefined 
+                    : writingAnswers[i] && writingAnswers[i].trim().length > 0;
+                  
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => quizGoTo(i)}
+                      className={`w-7 h-7 rounded text-[10px] font-bold flex items-center justify-center transition-colors ${
+                        i === quizState.currentQ
+                          ? 'bg-blue-500 text-white'
+                          : isAnswered
+                          ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400'
+                          : 'bg-gray-100 dark:bg-navy-800 text-gray-500 dark:text-gray-400'
+                      }`}
+                    >
+                      {i + 1}
+                    </button>
+                  );
+                })}
               </div>
               {quizState.currentQ === total - 1 ? (
                 <Button onClick={submitQuiz}>Submit</Button>
@@ -188,7 +282,8 @@ const StudentTests = ({ student }) => {
   if (quizState && quizState.submitted) {
     const test = tests.find(t => t.id === quizState.testId);
     const result = testResults.find(r => r.testId === quizState.testId && r.studentId === student.id);
-    const pct = result ? Math.round((result.score / result.totalQuestions) * 100) : 0;
+    const hasWritingQuestions = test?.questions.some(q => q.type === 'writing');
+    const pct = result && !hasWritingQuestions ? Math.round((result.score / result.totalQuestions) * 100) : 0;
 
     return (
       <div className="fixed inset-0 z-50 bg-white dark:bg-navy-950 flex items-center justify-center p-4">
@@ -197,7 +292,12 @@ const StudentTests = ({ student }) => {
             <i className="fa-solid fa-trophy text-white text-3xl" />
           </div>
           <h3 className="text-2xl font-bold text-navy-900 dark:text-white mb-2">Test Completed!</h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">Your score: {result?.score || 0}/{result?.totalQuestions || 0} ({pct}%)</p>
+          {!hasWritingQuestions && result && (
+            <p className="text-gray-600 dark:text-gray-400 mb-6">Your score: {result.score}/{result.totalQuestions} ({pct}%)</p>
+          )}
+          {hasWritingQuestions && (
+            <p className="text-gray-600 dark:text-gray-400 mb-6">Your answers have been submitted. Writing questions will be graded manually.</p>
+          )}
           <Button onClick={exitQuiz} className="w-full">
             Back to Tests
           </Button>
@@ -212,15 +312,22 @@ const StudentTests = ({ student }) => {
       <div className="space-y-4">
         {tests.map((t) => {
           const result = testResults.find(r => r.testId === t.id && r.studentId === student.id);
-          const pct = result ? Math.round((result.score / result.totalQuestions) * 100) : 0;
+          const hasWritingQuestions = t.questions.some(q => q.type === 'writing');
+          const pct = result && !hasWritingQuestions ? Math.round((result.score / result.totalQuestions) * 100) : 0;
           const statusBadge = result ? (
-            <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${
-              pct >= 60
-                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
-                : 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400'
-            }`}>
-              Score: {result.score}/{result.totalQuestions} ({pct}%)
-            </span>
+            hasWritingQuestions ? (
+              <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400">
+                Submitted
+              </span>
+            ) : (
+              <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${
+                pct >= 60
+                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
+                  : 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400'
+              }`}>
+                Score: {result.score}/{result.totalQuestions} ({pct}%)
+              </span>
+            )
           ) : (
             <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
               Not Attempted
