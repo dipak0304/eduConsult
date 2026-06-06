@@ -9,13 +9,15 @@ const Contact = () => {
     message: '',
   });
   const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSent, setIsSent] = useState(false);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     setErrors({ ...errors, [e.target.name]: '' });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const newErrors = {};
 
@@ -30,8 +32,28 @@ const Contact = () => {
       return;
     }
 
-    alert('Message sent successfully!');
-    setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api'}/contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      if (response.ok) {
+        setIsSent(true);
+        setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
+        setTimeout(() => setIsSent(false), 5000);
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to send message. Please try again.');
+      }
+    } catch (error) {
+      alert('Failed to send message. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -133,10 +155,21 @@ const Contact = () => {
               
               <button
                 type="submit"
-                className="w-full py-3 bg-gradient-to-r from-cta-500 to-cta-600 text-white font-bold rounded-lg hover:from-cta-600 hover:to-cta-600 transition-all shadow-lg shadow-cta-500/25"
+                disabled={isSubmitting}
+                className={`w-full py-3 font-bold rounded-lg transition-all shadow-lg shadow-cta-500/25 ${
+                  isSubmitting
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-cta-500 to-cta-600 hover:from-cta-600 hover:to-cta-600 text-white'
+                }`}
               >
-                Send Message
+                {isSubmitting ? 'Sending...' : 'Send Message'}
               </button>
+              
+              {isSent && (
+                <div className="mt-4 p-3 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg text-center text-sm font-medium">
+                  ✓ Message sent successfully!
+                </div>
+              )}
             </form>
           </div>
           

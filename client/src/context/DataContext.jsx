@@ -576,6 +576,134 @@ export const DataProvider = ({ children }) => {
     localStorage.removeItem('token');
   };
 
+  const fetchCourses = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/courses`);
+      if (response.ok) {
+        const data = await response.json();
+        // Map server response to client format
+        const mappedCourses = data.map(course => ({
+          ...course,
+          id: course._id,
+          cat: course.category,
+          img: course.image,
+        }));
+        setCourses(mappedCourses);
+      }
+    } catch (error) {
+      console.error('Error fetching courses:', error);
+    }
+  };
+
+  const addCourseApi = async (course) => {
+    try {
+      const currentToken = token || localStorage.getItem('token');
+      
+      const headers = { 'Content-Type': 'application/json' };
+      if (currentToken) headers['Authorization'] = `Bearer ${currentToken}`;
+
+      const response = await fetch(`${API_BASE_URL}/courses`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          title: course.title,
+          category: course.cat,
+          duration: course.duration,
+          price: course.price,
+          image: course.img,
+          description: course.description
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Map server response to client format
+        const newCourse = {
+          ...data,
+          id: data._id,
+          cat: data.category,
+          img: data.image,
+        };
+        setCourses([...courses, newCourse]);
+        return newCourse;
+      } else {
+        const error = await response.json();
+        console.error('Error adding course:', error);
+        throw new Error(error.message || 'Failed to add course');
+      }
+    } catch (error) {
+      console.error('Error adding course:', error);
+      throw error;
+    }
+  };
+
+  const updateCourseApi = async (id, updates) => {
+    try {
+      const currentToken = token || localStorage.getItem('token');
+      
+      const headers = { 'Content-Type': 'application/json' };
+      if (currentToken) headers['Authorization'] = `Bearer ${currentToken}`;
+
+      const response = await fetch(`${API_BASE_URL}/courses/${id}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({
+          title: updates.title,
+          category: updates.cat,
+          duration: updates.duration,
+          price: updates.price,
+          image: updates.img,
+          description: updates.description
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Map server response to client format
+        const updatedCourse = {
+          ...data,
+          id: data._id,
+          cat: data.category,
+          img: data.image,
+        };
+        setCourses(courses.map(c => c.id === id ? updatedCourse : c));
+        return updatedCourse;
+      } else {
+        const error = await response.json();
+        console.error('Error updating course:', error);
+        throw new Error(error.message || 'Failed to update course');
+      }
+    } catch (error) {
+      console.error('Error updating course:', error);
+      throw error;
+    }
+  };
+
+  const deleteCourseApi = async (id) => {
+    try {
+      const currentToken = token || localStorage.getItem('token');
+      
+      const headers = { 'Content-Type': 'application/json' };
+      if (currentToken) headers['Authorization'] = `Bearer ${currentToken}`;
+
+      const response = await fetch(`${API_BASE_URL}/courses/${id}`, {
+        method: 'DELETE',
+        headers,
+      });
+
+      if (response.ok) {
+        setCourses(courses.filter(c => c.id !== id));
+      } else {
+        const error = await response.json();
+        console.error('Error deleting course:', error);
+        throw new Error(error.message || 'Failed to delete course');
+      }
+    } catch (error) {
+      console.error('Error deleting course:', error);
+      throw error;
+    }
+  };
+
   const value = {
     students,
     fees,
@@ -589,6 +717,7 @@ export const DataProvider = ({ children }) => {
     fetchStudentById,
     fetchStudentFees,
     fetchStudentAttendance,
+    fetchCourses,
     addStudent,
     updateStudent,
     deleteStudent,
@@ -600,9 +729,9 @@ export const DataProvider = ({ children }) => {
     updateTest,
     deleteTest,
     addTestResult,
-    addCourse,
-    updateCourse,
-    deleteCourse,
+    addCourse: addCourseApi,
+    updateCourse: updateCourseApi,
+    deleteCourse: deleteCourseApi,
     login,
     logout,
   };
