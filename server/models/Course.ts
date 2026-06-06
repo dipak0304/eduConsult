@@ -43,4 +43,9 @@ const CourseSchema: Schema = new Schema({
   timestamps: true
 });
 
+// Add indexes for better query performance
+CourseSchema.index({ createdAt: -1 });
+CourseSchema.index({ category: 1 });
+CourseSchema.index({ title: 'text', category: 'text' });
+
 export default mongoose.model<ICourse>('Course', CourseSchema);

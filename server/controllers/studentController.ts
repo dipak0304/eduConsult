@@ -49,8 +49,27 @@ export const createStudent = async (req: Request, res: Response): Promise<void> 
 // Get all students
 export const getAllStudents = async (req: Request, res: Response): Promise<void> => {
   try {
-    const students = await Student.find().sort({ createdAt: -1 });
-    res.status(200).json(students);
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 50;
+    const skip = (page - 1) * limit;
+
+    const students = await Student.find()
+      .select('fullName email phone age qualification address photoUrl assignedClass classTime classes isAdmitted isPaid createdAt')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Student.countDocuments();
+
+    res.status(200).json({
+      students,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
   } catch (error) {
     console.error('Error fetching students:', error);
     res.status(500).json({ message: 'Error fetching students', error });

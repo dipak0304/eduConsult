@@ -115,6 +115,11 @@ const StudentSchema: Schema = new Schema(
   }
 );
 
+// Add indexes for better query performance
+StudentSchema.index({ createdAt: -1 });
+StudentSchema.index({ email: 1 });
+StudentSchema.index({ assignedClass: 1 });
+
 // Hash password before saving
 StudentSchema.pre('save', async function (next) {
   const student = this as any;

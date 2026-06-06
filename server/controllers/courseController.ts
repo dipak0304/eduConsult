@@ -24,8 +24,27 @@ export const createCourse = async (req: Request, res: Response) => {
 // Get all courses
 export const getAllCourses = async (req: Request, res: Response) => {
   try {
-    const courses = await Course.find().sort({ createdAt: -1 });
-    res.status(200).json(courses);
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 50;
+    const skip = (page - 1) * limit;
+
+    const courses = await Course.find()
+      .select('title category duration price image description createdAt')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Course.countDocuments();
+
+    res.status(200).json({
+      courses,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
   } catch (error: any) {
     res.status(500).json({ message: 'Error fetching courses', error: error.message });
   }

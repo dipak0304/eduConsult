@@ -49,12 +49,7 @@ export const DataProvider = ({ children }) => {
     // Initialize default data if empty
     if (loadedCourses.length === 0) {
       const defaultCourses = [
-        { id: 'cr1', title: 'Full Stack Web Development', cat: 'Technology', duration: '6 Months', price: '25,000', img: 'https://placehold.co/600x400/0f172a/3b82f6?text=Web+Dev' },
-        { id: 'cr2', title: 'Data Science & Analytics', cat: 'Technology', duration: '4 Months', price: '20,000', img: 'https://placehold.co/600x400/0f172a/fb923c?text=Data+Sci' },
-        { id: 'cr3', title: 'Digital Marketing Mastery', cat: 'Business', duration: '3 Months', price: '15,000', img: 'https://placehold.co/600x400/0f172a/3b82f6?text=Marketing' },
-        { id: 'cr4', title: 'Business Analytics & MBA Prep', cat: 'Business', duration: '5 Months', price: '30,000', img: 'https://placehold.co/600x400/0f172a/fb923c?text=MBA+Prep' },
-        { id: 'cr5', title: 'UI/UX Design Certificate', cat: 'Design', duration: '4 Months', price: '18,000', img: 'https://placehold.co/600x400/0f172a/3b82f6?text=UI+UX' },
-        { id: 'cr6', title: 'English Communication & IELTS', cat: 'Language', duration: '2 Months', price: '10,000', img: 'https://placehold.co/600x400/0f172a/fb923c?text=IELTS' },
+     
       ];
       localStorage.setItem('courses', JSON.stringify(defaultCourses));
       setCourses(defaultCourses);
@@ -64,28 +59,7 @@ export const DataProvider = ({ children }) => {
 
     if (loadedTests.length === 0) {
       const defaultTests = [
-        {
-          id: 't1',
-          title: 'JavaScript Fundamentals',
-          timeLimit: 15,
-          questions: [
-            { question: 'What is the output of typeof null?', options: ['null', 'undefined', 'object', 'number'], correctAnswer: 2 },
-            { question: 'Which method adds an element to the end of an array?', options: ['push()', 'pop()', 'shift()', 'unshift()'], correctAnswer: 0 },
-            { question: 'What does === check?', options: ['Value only', 'Type only', 'Value and type', 'Neither'], correctAnswer: 2 },
-            { question: 'Which is not a JavaScript data type?', options: ['String', 'Boolean', 'Float', 'Symbol'], correctAnswer: 2 },
-            { question: 'What is the correct way to create a function?', options: ['function myFunc() {}', 'create myFunc() {}', 'def myFunc() {}', 'function:myFunc() {}'], correctAnswer: 0 },
-          ],
-        },
-        {
-          id: 't2',
-          title: 'React Basics',
-          timeLimit: 10,
-          questions: [
-            { question: 'What hook is used for state management?', options: ['useEffect', 'useState', 'useContext', 'useReducer'], correctAnswer: 1 },
-            { question: 'What does JSX stand for?', options: ['JavaScript XML', 'Java Syntax Extension', 'JavaScript Extension', 'None'], correctAnswer: 0 },
-            { question: 'Which is the correct way to pass props?', options: ['<Comp prop=value />', '<Comp {prop} />', '<Comp prop="value" />', 'Both A and C'], correctAnswer: 3 },
-          ],
-        },
+        
       ];
       localStorage.setItem('tests', JSON.stringify(defaultTests));
       setTests(defaultTests);
@@ -96,25 +70,27 @@ export const DataProvider = ({ children }) => {
     setTestResults(loadedTestResults);
   }, []);
 
-  const fetchStudents = async () => {
+  const fetchStudents = async (page = 1, limit = 50) => {
     try {
       const headers = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
       
-      const response = await fetch(`${API_BASE_URL}/students`, { headers });
+      const response = await fetch(`${API_BASE_URL}/students?page=${page}&limit=${limit}`, { headers });
       if (response.ok) {
         const data = await response.json();
         // Map server response (fullName) to client format (name)
-        const mappedStudents = data.map(student => ({
+        const mappedStudents = data.students.map(student => ({
           ...student,
           name: student.fullName,
           id: student._id,
         }));
         setStudents(mappedStudents);
+        return { students: mappedStudents, pagination: data.pagination };
       }
     } catch (error) {
       console.error('Error fetching students:', error);
     }
+    return null;
   };
 
   const fetchStudentById = async (studentId) => {
@@ -236,6 +212,11 @@ export const DataProvider = ({ children }) => {
       fetchFees();
     }
   }, [token, session?.role]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch courses from API on mount
+  useEffect(() => {
+    fetchCourses();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Save data to localStorage whenever it changes (for non-student data)
   useEffect(() => {
@@ -576,23 +557,25 @@ export const DataProvider = ({ children }) => {
     localStorage.removeItem('token');
   };
 
-  const fetchCourses = async () => {
+  const fetchCourses = async (page = 1, limit = 50) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/courses`);
+      const response = await fetch(`${API_BASE_URL}/courses?page=${page}&limit=${limit}`);
       if (response.ok) {
         const data = await response.json();
         // Map server response to client format
-        const mappedCourses = data.map(course => ({
+        const mappedCourses = data.courses.map(course => ({
           ...course,
           id: course._id,
           cat: course.category,
           img: course.image,
         }));
         setCourses(mappedCourses);
+        return { courses: mappedCourses, pagination: data.pagination };
       }
     } catch (error) {
       console.error('Error fetching courses:', error);
     }
+    return null;
   };
 
   const addCourseApi = async (course) => {
