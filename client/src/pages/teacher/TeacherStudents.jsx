@@ -8,7 +8,9 @@ const TeacherStudents = () => {
   const { students, addStudent, updateStudent, deleteStudent } = useData();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
+  const [studentToDelete, setStudentToDelete] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -113,12 +115,18 @@ const TeacherStudents = () => {
   };
 
   const handleDelete = async (id) => {
-    if (confirm('Are you sure you want to delete this student?')) {
-      try {
-        await deleteStudent(id);
-      } catch (error) {
-        alert(error.message || 'Failed to delete student');
-      }
+    setStudentToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!studentToDelete) return;
+    try {
+      await deleteStudent(studentToDelete);
+      setIsDeleteModalOpen(false);
+      setStudentToDelete(null);
+    } catch (error) {
+      alert(error.message || 'Failed to delete student');
     }
   };
 
@@ -288,6 +296,20 @@ const TeacherStudents = () => {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} title="Delete Student">
+        <div className="space-y-4">
+          <p className="text-gray-600 dark:text-gray-400">Are you sure you want to delete this student? This action cannot be undone.</p>
+          <div className="flex gap-3 pt-2">
+            <Button variant="ghost" onClick={() => setIsDeleteModalOpen(false)} className="flex-1">
+              Cancel
+            </Button>
+            <Button onClick={confirmDelete} className="flex-1 bg-red-500 hover:bg-red-600">
+              Delete
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

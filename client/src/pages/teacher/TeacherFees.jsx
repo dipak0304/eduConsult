@@ -9,7 +9,9 @@ const TeacherFees = () => {
   const { students, fees, addFee, updateFee, deleteFee } = useData();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isBillModalOpen, setIsBillModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [feeToDelete, setFeeToDelete] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [formData, setFormData] = useState({
     studentId: '',
@@ -72,13 +74,19 @@ const TeacherFees = () => {
   };
 
   const handleDelete = async (id) => {
-    if (confirm('Are you sure you want to delete this fee?')) {
-      try {
-        await deleteFee(id);
-        setToast({ show: true, message: 'Fee deleted successfully', type: 'success' });
-      } catch (error) {
-        setToast({ show: true, message: error.message || 'Failed to delete fee', type: 'error' });
-      }
+    setFeeToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!feeToDelete) return;
+    try {
+      await deleteFee(feeToDelete);
+      setToast({ show: true, message: 'Fee deleted successfully', type: 'success' });
+      setIsDeleteModalOpen(false);
+      setFeeToDelete(null);
+    } catch (error) {
+      setToast({ show: true, message: error.message || 'Failed to delete fee', type: 'error' });
     }
   };
 
@@ -411,6 +419,20 @@ const TeacherFees = () => {
             </div>
           </div>
         )}
+      </Modal>
+
+      <Modal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} title="Delete Fee">
+        <div className="space-y-4">
+          <p className="text-gray-600 dark:text-gray-400">Are you sure you want to delete this fee? This action cannot be undone.</p>
+          <div className="flex gap-3 pt-2">
+            <Button variant="ghost" onClick={() => setIsDeleteModalOpen(false)} className="flex-1">
+              Cancel
+            </Button>
+            <Button onClick={confirmDelete} className="flex-1 bg-red-500 hover:bg-red-600">
+              Delete
+            </Button>
+          </div>
+        </div>
       </Modal>
 
       {toast.show && (
