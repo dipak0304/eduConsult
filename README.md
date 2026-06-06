@@ -2,6 +2,8 @@
 
 A full-stack educational consultation platform with AI-powered grading capabilities.
 
+**Repository:** https://github.com/dipak0304/eduConsult
+
 ## Features
 
 - User authentication and authorization
@@ -40,7 +42,7 @@ A full-stack educational consultation platform with AI-powered grading capabilit
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/dipak0304/eduConsult
 cd eduConsult
 ```
 
@@ -90,6 +92,10 @@ ADMIN_EMAIL=info@educonsult.pro
 
 # Groq API Key for AI Grading
 AI_API_KEY=your_groq_api_key_here
+
+# Teacher Email Credentials
+TEACHER_EMAIL=teacher_email@example.com
+TEACHER_PASS=teacher_password
 ```
 
 ### Important Notes
