@@ -428,10 +428,32 @@ const TeacherTests = () => {
       <Modal isOpen={attemptsModalOpen} onClose={() => setAttemptsModalOpen(false)} title={`Students who attempted: ${selectedTest?.title}`}>
         <div className="space-y-3">
           {selectedTest && (() => {
-            const attempts = testResults.filter((r) => r.testId === selectedTest.id);
+            let attempts = testResults.filter((r) => r.testId === selectedTest.id);
             if (attempts.length === 0) {
               return <p className="text-gray-500 dark:text-gray-400">No students have attempted this test yet.</p>;
             }
+            
+            // Sort attempts by score (highest to lowest)
+            attempts = attempts.sort((a, b) => {
+              const getScore = (attempt) => {
+                let calculatedScore = 0;
+                let totalGraded = 0;
+                if (attempt.writingGrades) {
+                  Object.values(attempt.writingGrades).forEach((grade) => {
+                    if (grade && grade.grade !== undefined) {
+                      calculatedScore += grade.grade;
+                      totalGraded++;
+                    }
+                  });
+                }
+                return totalGraded > 0 ? calculatedScore : (attempt.score !== undefined && attempt.score !== null ? attempt.score : 0);
+              };
+              
+              const scoreA = getScore(a);
+              const scoreB = getScore(b);
+              return scoreB - scoreA;
+            });
+            
             return (
               <div className="space-y-2">
                 {attempts.map((attempt) => {
